@@ -4,7 +4,7 @@ namespace backend.Models
 {
     public class ServerParticipant : BaseEntity
     {
-        public int ServerId  { get; set; }
+        public Guid ServerId  { get; set; }
         public Server Server { get; set; }
         public User Participant { get; set; }
         public Role Role { get; set; }

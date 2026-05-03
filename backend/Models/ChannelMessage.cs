@@ -2,7 +2,7 @@
 {
     public class ChannelMessage : BaseMessage
     {
-        public int ServerChannelId { get; set; }
+        public Guid ServerChannelId { get; set; }
         public ServerChannel ServerChannel { get; set; }
     }
 }
