@@ -1,5 +1,6 @@
 using backend.ChatHub;
 using backend.Data;
+using backend.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -15,6 +16,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSignalR();
+
+builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
