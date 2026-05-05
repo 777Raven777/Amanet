@@ -43,5 +43,9 @@ namespace backend.Services
                 return false;
             }
         }
+        public async Task<bool> RejectRequest(Guid relationship_id)
+        {
+
+        }
     }
 }

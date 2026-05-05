@@ -1,8 +1,10 @@
 using backend.ChatHub;
 using backend.Data;
 using backend.Services;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using System;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,8 +20,17 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<UserService>();
+builder.Services.AddTransient<IFileService, FileService>();
 
 var app = builder.Build();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "Uploads")),
+    RequestPath = "/resources"
+});
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -30,19 +41,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 
 app.MapControllers();
 
+//for testing
+
+
 app.MapHub<ChatHub>("/chathub");
+
+// endpoints for testing purposes
 
 app.MapPost("/test-broadcast", async (IHubContext<ChatHub> hubContext) =>
 {
     await hubContext.Clients.All.SendAsync("ReceiveMessage", "Server", "Hello from backend!");
     return Results.Ok("Message sent");
+});
+
+app.MapPost("/test-upload", async (IFormFile file, IFileService fileService) =>
+{
+    var fileName = await fileService.SaveFileAsync(file, [".jpg", ".jpeg", ".png"]);
+    return Results.Ok(new { fileName, url = $"/resources/{fileName}" });
+}).DisableAntiforgery();
+
+app.MapGet("/test-users", async (AppDbContext db) =>
+{
+    return Results.Ok(await db.Users.ToListAsync());
 });
 
 app.Run();
