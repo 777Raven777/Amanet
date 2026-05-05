@@ -1,5 +1,6 @@
 ﻿using backend.Data;
 using backend.Models;
+using backend.Models.DTO;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using static backend.Controllers.UserController;
@@ -19,11 +20,11 @@ namespace backend.Services
         {
             return await _context.Users
                 .Where(x => x.Username.Contains(username))
-                .Select(x => new UserDTO { Id = x.Id, Username = x.Username, Email = x.Email })
+                .Select(x => new UserDTO { Id = x.Id, Username = x.Username})
                 .ToListAsync();
         }
 
-        public async Task<UserDTO> AddUser(string email, string username, string password)
+        public async Task<UserDTO> AddUser(string email, string username, string password, IFormFile ProfilePicture )
         {
             User user = new User
             {
@@ -41,7 +42,6 @@ namespace backend.Services
             {
                 Id = user.Id,
                 Username = user.Username,
-                Email = user.Email
             };
             return created_user;
         }
@@ -70,7 +70,6 @@ namespace backend.Services
             {
                 Id = user.Id,
                 Username = user.Username,
-                Email = user.Email
             };
             return created_user;
         }
