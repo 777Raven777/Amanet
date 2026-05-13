@@ -13,16 +13,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-<<<<<<< HEAD
-=======
   <ItemGroup>
     <Folder Include="Controllers\" />
     <Folder Include="Uploads\" />
   </ItemGroup>
 
->>>>>>> 8ff41afa1581d092c8ea2dc34b4fefc32ddca98e
 </Project>
