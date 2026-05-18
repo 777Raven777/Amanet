@@ -1,9 +1,13 @@
+using backend.Cache;
 using backend.ChatHub;
 using backend.Data;
+//added for testing purposes 
+using backend.Models.DTO;
 using backend.Services;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.FileProviders;
 using System;
 using Microsoft.AspNetCore.Identity;
@@ -49,6 +53,14 @@ builder.Services.AddAuthorization(options =>
         nameof(TokenPermissions.CanSendDirectMessages),
         policy => policy.RequireClaim(nameof(TokenPermissions.CanSendDirectMessages), "allowed"));
 });
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    options.InstanceName = builder.Configuration["Redis:InstanceName"];
+});
+
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 var app = builder.Build();
 
@@ -99,6 +111,25 @@ app.MapPost("/test-upload", async (IFormFile file, IFileService fileService) =>
 app.MapGet("/test-users", async (AppDbContext db) =>
 {
     return Results.Ok(await db.Users.ToListAsync());
+});
+
+app.MapGet("/test-redis", async (ICacheService cache, AppDbContext db) =>
+{
+    var firstUser = await db.Users.FirstOrDefaultAsync();
+    if (firstUser == null)
+        return Results.NotFound("No users in database");
+
+    var key = $"user:{firstUser.Id}";
+    var cached = await cache.GetAsync<UserDTO>(key);
+
+    if (cached == null)
+    {
+        var dto = new UserDTO { Id = firstUser.Id, Username = firstUser.Username };
+        await cache.SetAsync(key, dto, TimeSpan.FromMinutes(5));
+        return Results.Ok(new { user = dto, fromCache = false });
+    }
+
+    return Results.Ok(new { user = cached, fromCache = true });
 });
 
 app.Run();
