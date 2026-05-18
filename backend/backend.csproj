@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.26" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.26">
       <PrivateAssets>all</PrivateAssets>
@@ -16,13 +17,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
-
-<<<<<<< HEAD
-=======
   <ItemGroup>
     <Folder Include="Controllers\" />
     <Folder Include="Uploads\" />
   </ItemGroup>
-
->>>>>>> 8ff41afa1581d092c8ea2dc34b4fefc32ddca98e
 </Project>

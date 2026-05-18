@@ -11,21 +11,29 @@ namespace backend.Models.DTO
         [Required]
         public Guid Id { get; set; }
 
-        [Required]
-        public UserDTO Sender { get; set; }
+        public UserDTO? Sender { get; set; }
 
-        [Required]
-        public UserDTO Receiver { get; set; }
+        public UserDTO? Receiver { get; set; }
 
         [Required]
         public RelationshipType Status { get; set; }
     }
 
-    public class WaitingRelationshipsDTO
+    public class FriendDTO
     {
         [Required]
-        public List<RelationshipDTO> Sent { get; set; }
+        public Guid Id { get; set; }
+
         [Required]
-        public List<RelationshipDTO> Received { get; set; }
+        public UserDTO Friend { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SendRequestDTO
+    {
+        [Required]
+        public string Id { get; set; }
     }
 }

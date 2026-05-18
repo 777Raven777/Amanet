@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using System;
+using Microsoft.AspNetCore.Identity;
+using backend.Models;
+using Microsoft.AspNetCore.Authentication;
+using backend.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -20,7 +24,31 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<FriendService>();
+
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
 builder.Services.AddTransient<IFileService, FileService>();
+
+builder.Services
+    .AddAuthentication("CustomAuth")
+    .AddScheme<AuthenticationSchemeOptions, NullAuthHandler>("CustomAuth", _ => { });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        nameof(TokenPermissions.CanUseServers),
+        policy => policy.RequireClaim(nameof(TokenPermissions.CanUseServers), "allowed"));
+
+    options.AddPolicy(
+        nameof(TokenPermissions.CanAddFriends),
+        policy => policy.RequireClaim(nameof(TokenPermissions.CanAddFriends), "allowed"));
+
+    options.AddPolicy(
+        nameof(TokenPermissions.CanSendDirectMessages),
+        policy => policy.RequireClaim(nameof(TokenPermissions.CanSendDirectMessages), "allowed"));
+});
 
 var app = builder.Build();
 
@@ -43,8 +71,9 @@ app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+app.UseMiddleware<backend.Middleware.AuthenticationMiddleware>();
 
+app.UseAuthorization();
 
 app.MapControllers();
 

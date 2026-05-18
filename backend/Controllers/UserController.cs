@@ -5,26 +5,37 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers
 {
-    // Important INFO: ALL THE METHODS WILL BE REMADE TO CONSIDER AUTH TOKENS, for now this is only for demonstration and will be changed accordingly later, now we consider that we have user token
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly UserService _service;
+        private readonly UserService _mainService;
+        private readonly TokenService _tokenService;
 
-        public UserController(UserService service)
+        public UserController(UserService mainService, TokenService tokenService)
         {
-            _service = service;
+            _mainService = mainService;
+            _tokenService = tokenService;
         }
 
+        [Authorize]
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<User>>> SearchUsers(string username)
+        public async Task<ActionResult<IEnumerable<UserDTO>>> SearchUsers(string username, [FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
         {
-            var users = await _service.SearchUsersAsync(username);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid callerId = Guid.Parse(userId);
+
+            pageSize = Math.Clamp(pageSize, 1, 50);
+            currentPage = Math.Clamp(currentPage, 1, int.MaxValue);
+
+            var users = await _mainService.SearchUsersAsync(username, callerId, currentPage, pageSize);
             return Ok(users);
         }
 
@@ -32,7 +43,7 @@ namespace backend.Controllers
         public async Task<ActionResult<UserDTO>> Register([FromForm] Models.DTO.RegisterRequest request)
         {
 
-            bool UniquenessCheck = await _service.UniqueEmailAndUsername(request.Email, request.Username);
+            bool UniquenessCheck = await _mainService.UniqueEmailAndUsername(request.Email, request.Username);
 
             if (!UniquenessCheck)
             {
@@ -44,22 +55,41 @@ namespace backend.Controllers
             {
                 return error;
             }
-            var user = await _service.AddUser(request.Email, request.Username, request.Password, request.ProfilePicture);
+            var user = await _mainService.AddUser(request.Email, request.Username, request.Password, request.ProfilePicture);
 
-            return Ok(user);
+            var tokenData = await _tokenService.GenerateToken(user.Id);
+
+            var response = new LoginRegisterResponse
+            {
+                Id = user.Id,
+                Username = user.Username,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                Token = tokenData.TokenValue
+            };
+
+            return Ok(response);
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<UserDTO>> Login(Models.DTO.LoginRequest request)
         {
-            UserDTO user = await _service.LoginUser(request);
+            UserDTO user = await _mainService.LoginUser(request);
 
             if (user == null)
             {
                 return Unauthorized("Either login or password is invalid");
             }
 
-            return Ok(user);
+            var tokenData = await _tokenService.GenerateToken(user.Id);
+            var response = new LoginRegisterResponse
+            {
+                Id = user.Id,
+                Username = user.Username,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                Token = tokenData.TokenValue
+            };
+
+            return Ok(response);
         }
 
         private ActionResult? ValidateImage(IFormFile? profileimage)
@@ -76,6 +106,7 @@ namespace backend.Controllers
                 }
                 string[] allowedFileExtensions = [".jpg", ".jpeg", ".png"];
                 var extension = Path.GetExtension(profileimage.FileName).ToLowerInvariant();
+
                 if (!allowedFileExtensions.Contains(extension))
                 {
                     return BadRequest("Image format must be one of those: jpg/jpeg/png");

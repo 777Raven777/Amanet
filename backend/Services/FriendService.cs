@@ -2,10 +2,10 @@
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-// Important INFO: ALL THE METHODS WILL BE REMADE TO CONSIDER AUTH TOKENS, for now this is only for demonstration and will be changed accordingly later, now we consider that we have user token
+using backend.Models.DTO;
+
 namespace backend.Services
 {
     public class FriendService
@@ -17,79 +17,172 @@ namespace backend.Services
             _context = context;
         }
 
-        public async Task<bool> AddUser(Guid user_id)
+        public async Task<(bool Success, string Message)> SendRequest(Guid userId, Guid callerId)
         {
             try
             {
-                User UserToAdd = await _context.Users
-                    .AsNoTracking()
-                    .Where(x => x.Id == user_id).
-                    FirstOrDefaultAsync();
-
-                if (UserToAdd == null)
+                if (userId == callerId)
                 {
-                    return false;
+                    return (false, "You cannot send a friend request to yourself.");
                 }
-                // when auth added sender will be from token
-                Relationship reletionship = new Relationship
+
+                bool userExists = await _context.Users.AnyAsync(x => x.Id == userId);
+                if (!userExists)
                 {
-                    ReceiverId = user_id,
-                    SenderId = user_id,
-                    Status = RelationshipType Waiting,
+                    return (false, "The requested user does not exist.");
+                }
+
+                bool existingRelation = await _context.Relationships.AnyAsync(x =>
+                    (x.SenderId == callerId && x.ReceiverId == userId) ||
+                    (x.SenderId == userId && x.ReceiverId == callerId));
+
+                if (existingRelation)
+                {
+                    return (false, "A relationship with this user already exists.");
+                }
+
+                Relationship relationship = new Relationship
+                {
+                    ReceiverId = userId,
+                    SenderId = callerId,
+                    Status = RelationshipType.Waiting,
                 };
 
-                _context.Relationships.Add(reletionship);
+                _context.Relationships.Add(relationship);
                 await _context.SaveChangesAsync();
-                return true;
+                return (true, "Request was sent successfully.");
             }
             catch (Exception ex)
             {
                 // log error here
-                return false;
+                return (false, "An internal server error occurred while sending the request.");
             }
         }
-        //public async Task<bool> RejectRequest(Guid reletionship_id)
-        //{
-            
-        //}
 
-        public async Task<WaitingRelationshipsDTO> WaitingRelationshipsList(Guid CentralUserId)
+        public async Task<(bool Success, string Message)> RejectRequest(Guid relationshipId, Guid callerId)
         {
-            List<RelationshipDTO> ReceivedDTO = await _context.Relationships
-                .Where(x => x.ReceiverId == CentralUserId && x.Status == RelationshipType.Waiting)
+            try
+            {
+                int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    UPDATE ""Relationships""
+                    SET Status = {(int)RelationshipType.Rejected} 
+                    WHERE Id = {relationshipId} 
+                      AND ReceiverId = {callerId} 
+                      AND Status = {(int)RelationshipType.Waiting}");
+
+                if (rows > 0)
+                {
+                    return (true, "Successfully rejected request");
+                }
+                else
+                {
+                    return (false, "Request does not exist");
+                }
+            }
+            catch (Exception es)
+            {
+                // log error
+                return (false, "An internal server error occurred while sending the request.");
+            }
+        }
+
+        public async Task<List<RelationshipDTO>> GetReceivedRequests(Guid callerId, int currentPage, int pageSize)
+        {
+            return await _context.Relationships
+                .Where(x => x.ReceiverId == callerId && x.Status == RelationshipType.Waiting)
+                .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new RelationshipDTO
                 {
                     Id = x.Id,
                     Status = x.Status,
                     Sender = new UserDTO { Id = x.Sender.Id, Username = x.Sender.Username, ProfilePictureUrl = x.Sender.ProfilePictureUrl },
                 })
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+        }
 
-            List<RelationshipDTO> SentDTO = await _context.Relationships
-                .Where(x => x.SenderId == CentralUserId && x.Status == RelationshipType.Waiting)
+        public async Task<List<RelationshipDTO>> GetSentRequests(Guid callerId, int currentPage, int pageSize)
+        {
+            return await _context.Relationships
+                .Where(x => x.SenderId == callerId && x.Status == RelationshipType.Waiting)
+                .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new RelationshipDTO
                 {
                     Id = x.Id,
                     Status = x.Status,
                     Receiver = new UserDTO { Id = x.Receiver.Id, Username = x.Receiver.Username, ProfilePictureUrl = x.Receiver.ProfilePictureUrl },
                 })
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
-
-            return new WaitingRelationshipsDTO
-            {
-                Sent = SentDTO,
-                Received = ReceivedDTO,
-            };
         }
 
-        public async Task<Relationship> RetrieveReletionship(Guid reletionship_id)
+        public async Task<List<FriendDTO>> RetrieveActiveRelationship(Guid callerId, int currentPage, int pageSize)
         {
-            Reletionship reletionship = await _context.Relationships.
-                .AsNoTrackking()
-                .Where(x => x.Id == reletionship_id)
-                .FirstOrDefaultAsync();
+            return await _context.Relationships
+                .Where(x => (x.SenderId == callerId || x.ReceiverId == callerId)
+                         && x.Status == RelationshipType.Accepted)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => new FriendDTO
+                {
+                    Id = x.Id,
+                    CreatedAt = x.CreatedAt,
+                    Friend = x.SenderId == callerId
+                        ? new UserDTO { Id = x.Receiver.Id, Username = x.Receiver.Username, ProfilePictureUrl = x.Receiver.ProfilePictureUrl }
+                        : new UserDTO { Id = x.Sender.Id, Username = x.Sender.Username, ProfilePictureUrl = x.Sender.ProfilePictureUrl }
+                }).Skip((currentPage-1)*pageSize).Take(pageSize)
+                .ToListAsync();
+        }
 
-            return reletionship;
+        public async Task<(bool Success, string Message)> DeleteRequest(Guid relationshipId, Guid callerId) {
+            try
+            {
+                int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    DELETE FROM ""Relationships""
+                    WHERE Id = {relationshipId} 
+                        AND (ReceiverId = {callerId} OR SenderId = {callerId})");
+
+                if (rows > 0)
+                {
+                    return (true, "Successfully deleted request");
+                }
+                else
+                {
+                    return (false, "Request does not exist");
+                }
+            }
+            catch (Exception e)
+            {
+                return (false, "An internal server error occurred while sending the request.");
+            }
+        }
+
+        public async Task<(bool Success, string Message)> AcceptRequest(Guid relationshipId, Guid callerId)
+        {
+            try
+            {
+                int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    UPDATE ""Relationships""
+                    SET ""Status"" = {(int)RelationshipType.Accepted} 
+                        WHERE ""Id"" = {relationshipId} 
+                          AND ""ReceiverId"" = {callerId} 
+                          AND ""Status"" = {(int)RelationshipType.Waiting}");
+
+                if (rows > 0)
+                {
+                    return (true, "Successfully accepted request");
+                }
+                else
+                {
+                    return (false, "Request does not exist");
+                }
+            }
+            catch (Exception es)
+            {
+                // log error
+                return (false, "An internal server error occurred while accepting the request.");
+            }
         }
     }
 }

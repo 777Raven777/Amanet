@@ -16,6 +16,7 @@ namespace backend.Data
         public DbSet<ServerChannel> ServerChannels { get; set; }
         public DbSet<ServerParticipant> ServerParticipants { get; set; }
         public DbSet<Role> Roles { get; set; }
+        public DbSet<Token> Tokens { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         { }

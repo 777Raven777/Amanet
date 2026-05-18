@@ -13,6 +13,11 @@ namespace backend.Models.DTO
         public string ProfilePictureUrl { get; set; }
     }
 
+    public class LoginRegisterResponse : UserDTO
+    {
+        public string Token { get; set; }
+    }
+
     public class RegisterRequest {
         [Required]
         [MaxLength(255)]
@@ -31,6 +36,7 @@ namespace backend.Models.DTO
     {
         [Required, MaxLength(255)]
         public string EmailOrUsername { get; set; }
+
         [Required, MinLength(8), MaxLength(255)]
         public string Password { get; set; }
     }
