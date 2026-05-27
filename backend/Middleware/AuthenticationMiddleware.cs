@@ -20,6 +20,7 @@ public class AuthenticationMiddleware
     public async Task InvokeAsync(HttpContext context, TokenService tokenService)
     {
         // Here need to hit cache first but cache does not exist yet so directly to db
+
         string userToken = null;
         if (context.WebSockets.IsWebSocketRequest)
         {

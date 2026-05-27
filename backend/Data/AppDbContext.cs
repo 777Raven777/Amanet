@@ -9,7 +9,7 @@ namespace backend.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Relationship> Relationships { get; set; }
         public DbSet<Conversation> Conversations { get; set; }
-        public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
+        //public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
         public DbSet<PrivateMessage> PrivateMessages { get; set; }
         public DbSet<ChannelMessage> ChannelMessages { get; set; }
         public DbSet<Server> Servers { get; set; }
@@ -35,6 +35,27 @@ namespace backend.Data
                       .WithMany()
                       .HasForeignKey(r => r.ReceiverId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Conversation>(entity =>
+            {
+                entity.HasOne(c => c.UserLow)
+                      .WithMany()
+                      .HasForeignKey(c => c.UserLowId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.UserHigh)
+                      .WithMany()
+                      .HasForeignKey(c => c.UserHighId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                // One conversation per pair of users.
+                entity.HasIndex(c => new { c.UserLowId, c.UserHighId }).IsUnique();
+
+                // Enforce the "lower ID on the left"
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "CK_Conversation_UserOrder",
+                    "\"UserLowId\" < \"UserHighId\""));
             });
         }
     }

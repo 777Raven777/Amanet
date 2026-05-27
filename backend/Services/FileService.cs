@@ -16,7 +16,7 @@
                 throw new ArgumentNullException(nameof(image));
             }
 
-            var currentPath = environment.ContentRootPath;
+            var currentPath = environment.WebRootPath;
             var path = Path.Combine(currentPath, "Uploads");
 
             if (!Directory.Exists(path))
@@ -44,8 +44,8 @@
             {
                 throw new ArgumentNullException(nameof(fileNameWithExtension));
             }
-            var contentPath = environment.ContentRootPath;
-            var path = Path.Combine(contentPath, $"Uploads", fileNameWithExtension);
+            var contentPath = environment.WebRootPath;
+            var path = Path.Combine(contentPath, fileNameWithExtension); // fileNameWithExtension ->  /uploads/name.jpg
 
             if (!File.Exists(path))
             {
