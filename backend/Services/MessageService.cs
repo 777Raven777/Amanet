@@ -370,6 +370,7 @@ public class MessageService
 
         _context.ChannelMessages.Add(message);
         await _context.SaveChangesAsync();
+
         return (true, "Message succesfully created", new MessageDTO
         {
             Id = message.Id,

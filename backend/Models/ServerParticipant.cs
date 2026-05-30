@@ -6,6 +6,8 @@ namespace backend.Models
     {
         public Guid ServerId  { get; set; }
         public Server Server { get; set; }
+        
+        public Guid ParticipantId { get; set; }
         public User Participant { get; set; }
 
         public Role Role { get; set; }

@@ -1,19 +1,29 @@
 using backend.Cache;
-using backend.ChatHub;
+using backend.Hubs;
 using backend.Data;
+using backend.Middleware;
+using backend.Models;
 //added for testing purposes 
 using backend.Models.DTO;
+using backend.Realtime.ConnectionTracking;
 using backend.Services;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.FileProviders;
+using StackExchange.Redis;
 using System;
-using Microsoft.AspNetCore.Identity;
-using backend.Models;
-using Microsoft.AspNetCore.Authentication;
-using backend.Middleware;
+using System.Data;
+
+using backend.Hubs;
+using backend.Realtime;
+using backend.Realtime.ConnectionTracking;
+using StackExchange.Redis;
+
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -30,6 +40,11 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<FriendService>();
+
+builder.Services.AddScoped<MessageService>();
+builder.Services.AddScoped<PresenceService>();
+
+builder.Services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
 
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
@@ -54,13 +69,23 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireClaim(nameof(TokenPermissions.CanSendDirectMessages), "allowed"));
 });
 
-builder.Services.AddStackExchangeRedisCache(options =>
+/* builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration["Redis:ConnectionString"];
     options.InstanceName = builder.Configuration["Redis:InstanceName"];
 });
 
+builder.Services.AddSingleton<ICacheService, RedisCacheService>(); */
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"]
+    ?? throw new InvalidOperationException(
+        "Redis:ConnectionString is not configured. Add it to user secrets or appsettings.");
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+builder.Services.AddSingleton<IConnectionTracker, RedisConnectionTracker>();
 
 var app = builder.Build();
 
@@ -82,6 +107,10 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();
+
+//app.UseWebSockets(); // added for debuging
+
+app.UseAuthentication(); // added for debuging
 
 app.UseMiddleware<backend.Middleware.AuthenticationMiddleware>();
 
@@ -113,7 +142,7 @@ app.MapGet("/test-users", async (AppDbContext db) =>
     return Results.Ok(await db.Users.ToListAsync());
 });
 
-app.MapGet("/test-redis", async (ICacheService cache, AppDbContext db) =>
+/*app.MapGet("/test-redis", async (ICacheService cache, AppDbContext db) =>
 {
     var firstUser = await db.Users.FirstOrDefaultAsync();
     if (firstUser == null)
@@ -130,6 +159,92 @@ app.MapGet("/test-redis", async (ICacheService cache, AppDbContext db) =>
     }
 
     return Results.Ok(new { user = cached, fromCache = true });
-});
+});*/
+
+//Redis health-check
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/debug/redis-health", async (
+        [FromServices] IConnectionMultiplexer redis,
+        [FromServices] ICacheService cache,
+        [FromServices] IConnectionTracker tracker) =>
+    {
+        var report = new Dictionary<string, object>();
+
+        // Layer 1: raw multiplexer — can we PING Redis at all?
+        try
+        {
+            var pong = await redis.GetDatabase().PingAsync();
+            report["multiplexer"] = new
+            {
+                ok = true,
+                ping_ms = pong.TotalMilliseconds,
+                endpoint = redis.GetEndPoints().FirstOrDefault()?.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            report["multiplexer"] = new { ok = false, error = ex.Message };
+            return Results.Json(report, statusCode: 503);
+        }
+
+        // Layer 2: ICacheService — round-trip a value
+        try
+        {
+            var probeKey = "healthcheck:cache-probe";
+            var probeValue = new CacheProbe(DateTime.UtcNow, Guid.NewGuid().ToString());
+
+            await cache.SetAsync(probeKey, probeValue, TimeSpan.FromSeconds(30));
+            var roundTripped = await cache.GetAsync<CacheProbe>(probeKey);
+            await cache.RemoveAsync(probeKey);
+            var afterRemove = await cache.GetAsync<CacheProbe>(probeKey);
+
+            report["cache_service"] = new
+            {
+                ok = roundTripped != null && afterRemove == null,
+                wrote_and_read = roundTripped != null,
+                marker_matched = roundTripped?.Marker == probeValue.Marker,
+                removed_cleanly = afterRemove == null
+            };
+        }
+        catch (Exception ex)
+        {
+            report["cache_service"] = new { ok = false, error = ex.Message };
+        }
+
+        // Layer 3: IConnectionTracker — full lifecycle test
+        try
+        {
+            var probeUserId = Guid.NewGuid();
+            var probeConn = $"healthcheck-conn-{Guid.NewGuid()}";
+
+            await tracker.AddConnectionAsync(probeUserId, probeConn);
+            var connsAfterAdd = await tracker.GetConnectionsAsync(probeUserId);
+            var onlineAfterAdd = await tracker.IsOnlineAsync(probeUserId);
+
+            await tracker.RemoveConnectionAsync(probeConn);
+            var onlineAfterRemove = await tracker.IsOnlineAsync(probeUserId);
+
+            report["connection_tracker"] = new
+            {
+                ok = connsAfterAdd.Contains(probeConn)
+                     && onlineAfterAdd
+                     && !onlineAfterRemove,
+                add_succeeded = connsAfterAdd.Contains(probeConn),
+                online_when_connected = onlineAfterAdd,
+                offline_after_disconnect = !onlineAfterRemove
+            };
+        }
+        catch (Exception ex)
+        {
+            report["connection_tracker"] = new { ok = false, error = ex.Message };
+        }
+
+        return Results.Json(report);
+    });
+}
+
 
 app.Run();
+
+record CacheProbe(DateTime Ts, string Marker); //redis health-check

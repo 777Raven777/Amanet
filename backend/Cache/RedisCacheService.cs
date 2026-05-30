@@ -1,67 +1,40 @@
-﻿using Microsoft.Extensions.Caching.Distributed;
+﻿using StackExchange.Redis;
 using System.Text.Json;
 
 namespace backend.Cache;
 
-/// <summary>
-/// Redis implementation of <see cref="ICacheService"/>.
-/// Uses IDistributedCache under the hood — do not inject IDistributedCache
-/// directly in your services, use ICacheService instead.
-/// </summary>
-/// <remarks>
-/// Registered as singleton in Program.cs:
-/// <code>
-/// builder.Services.AddStackExchangeRedisCache(options =>
-/// {
-///     options.Configuration = builder.Configuration["Redis:ConnectionString"];
-///     options.InstanceName = builder.Configuration["Redis:InstanceName"];
-/// });
-/// builder.Services.AddSingleton&lt;ICacheService, RedisCacheService&gt;();
-/// </code>
-/// 
-/// Requires Redis to be running. Start with Docker:
-/// <code>
-/// docker run --name redis -p 6379:6379 -d redis
-/// </code>
-/// 
-/// secrets.json
-/// <code>
-/// {
-///     "Redis:ConnectionString": "[url]:[port],password=[password]",
-///     "Redis:InstanceName": "[project name]:"
-/// }
-/// </code>
-/// </remarks>
 public class RedisCacheService : ICacheService
 {
-    private readonly IDistributedCache _cache;
+    private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(5);
 
-    public RedisCacheService(IDistributedCache cache)
+    private readonly IDatabase db;
+    private readonly string keyPrefix;
+
+    public RedisCacheService(IConnectionMultiplexer redis, IConfiguration config)
     {
-        _cache = cache;
+        db = redis.GetDatabase();
+        keyPrefix = config["Redis:InstanceName"] ?? string.Empty;
     }
 
-    /// <inheritdoc />
     public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null)
     {
-        var expiration = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = ttl ?? TimeSpan.FromMinutes(5)
-        };
         var jsonData = JsonSerializer.Serialize(value);
-        await _cache.SetStringAsync(key, jsonData, expiration);
+        await db.StringSetAsync(keyPrefix + key, jsonData, ttl ?? DefaultTtl);
     }
 
-    /// <inheritdoc />
+
     public async Task<T?> GetAsync<T>(string key)
     {
-        var jsonData = await _cache.GetStringAsync(key);
-        return jsonData == null ? default : JsonSerializer.Deserialize<T>(jsonData);
+        var jsonData = await db.StringGetAsync(keyPrefix + key);
+
+        if (jsonData.IsNullOrEmpty)
+            return default;
+
+        return JsonSerializer.Deserialize<T>(jsonData!);
     }
 
-    /// <inheritdoc />
     public async Task RemoveAsync(string key)
     {
-        await _cache.RemoveAsync(key);
+        await db.KeyDeleteAsync(keyPrefix + key);
     }
 }
