@@ -40,4 +40,20 @@ namespace backend.Models.DTO
         [Required, MinLength(8), MaxLength(255)]
         public string Password { get; set; }
     }
+
+    public class PatchProfile
+    {
+        [MaxLength(255)]
+        public string? Username { get; set; }
+        [MaxLength(255)]
+        public string? Email { get; set; }
+
+        [MinLength(8), MaxLength(255)]
+        public string? newPassword { get; set; }
+
+        [MinLength(8), MaxLength(255)]
+        public string? oldPassword { get; set; }
+
+        public IFormFile? ProfilePicture { get; set; }
+    }
 }

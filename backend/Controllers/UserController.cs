@@ -1,13 +1,7 @@
-﻿using backend.Models;
-using backend.Models.DTO;
+﻿using backend.Models.DTO;
 using backend.Services;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers
@@ -90,6 +84,28 @@ namespace backend.Controllers
             };
 
             return Ok(response);
+        }
+
+        [Authorize]
+        [HttpPatch("update-profile")]
+        public async Task<ActionResult<UserDTO>> PatchProfile([FromForm] PatchProfile request) 
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid callerId = Guid.Parse(userId);
+
+            var error = ValidateImage(request.ProfilePicture);
+            if (error != null)
+            {
+                return error;
+            }
+
+            (bool success, string msg, UserDTO userDTO) = await _mainService.PatchProfile(callerId, request);
+
+            if (success)
+            {
+                return Ok(userDTO);
+            }
+            return BadRequest(msg);
         }
 
         private ActionResult? ValidateImage(IFormFile? profileimage)
