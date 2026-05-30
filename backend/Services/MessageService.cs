@@ -1,277 +1,388 @@
 ﻿using backend.Data;
 using backend.Models;
 using backend.Models.DTO;
-using backend.Realtime;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.ComponentModel.DataAnnotations;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace backend.Services;
 
 public class MessageService
 {
-    private const int MaxMessageLength = 4000;
+    private readonly AppDbContext _context;
 
-    private readonly AppDbContext _db;
-    private readonly IRealtimeNotifier _notifier;
-
-    public MessageService(AppDbContext db, IRealtimeNotifier notifier)
+    public MessageService(AppDbContext context)
     {
-        _db = db;
-        _notifier = notifier;
+        _context = context;
     }
 
-
-    public async Task<PrivateMessageDTO> SendMessageInConversationAsync(
-        Guid senderId,
-        Guid conversationId,
-        string text,
-        CancellationToken ct = default)
+    public async Task<(bool Success, string ResponseText, MessageDTO? Message)> SendPrivateMessage(Guid callerId, SendMessageRequest request)
     {
-        ValidateText(text);
+        // NOTE: Validation (Message non-empty, ConversationId/ReceiverId XOR) lives on
+        // SendMessageRequest via IValidatableObject + [ApiController] model validation.
+        // Service assumes a structurally valid request.
 
-        var conv = await _db.Conversations
-            .AsNoTracking()
-            .Where(c => c.Id == conversationId)
-            .Select(c => new { c.Id, c.UserLowId, c.UserHighId })
-            .FirstOrDefaultAsync(ct);
+        string cleanText = request.Message.Trim();
 
-        if (conv == null)
+        Conversation conversation;
+        if (request.ConversationId != null)
         {
-            throw new HubException("Conversation not found.");
-        }
-           
-        if (conv.UserLowId != senderId && conv.UserHighId != senderId)
-        {
-
-            throw new HubException("You are not a participant of this conversation.");
-        }
-
-        var otherUserId = conv.UserLowId == senderId ? conv.UserHighId : conv.UserLowId;
-
-        return await PersistAndBroadcastAsync(senderId, conv.Id, otherUserId, text, ct);
-    }
-
-    public async Task<PrivateMessageDTO> SendMessageToUserAsync(
-        Guid senderId,
-        Guid recipientId,
-        string text,
-        CancellationToken ct = default)
-    {
-        ValidateText(text);
-
-        if (senderId == recipientId)
-        {
-            throw new HubException("You cannot message yourself.");
-        }
-
-        var (low, high) = OrderUserPair(senderId, recipientId);
-
-        var existing = await _db.Conversations
-            .AsNoTracking()
-            .Where(c => c.UserLowId == low && c.UserHighId == high)
-            .Select(c => new { c.Id })
-            .FirstOrDefaultAsync(ct);
-
-        Guid conversationId;
-
-        if (existing != null)
-        {
-            conversationId = existing.Id;
+            var (ok, msg, existing) = await LoadExistingConversation(request.ConversationId.Value, callerId);
+            if (!ok) return (false, msg, null);
+            conversation = existing!;
         }
         else
         {
-            await EnsureCanInitiateAsync(senderId, recipientId, ct);
-
-            var created = new Conversation
-            {
-                UserLowId = low,
-                UserHighId = high,
-            };
-
-            _db.Conversations.Add(created);
-
-            try
-            {
-                await _db.SaveChangesAsync(ct);
-                conversationId = created.Id;
-            }
-            catch (DbUpdateException)
-            {
-                var winner = await _db.Conversations
-                    .AsNoTracking()
-                    .Where(c => c.UserLowId == low && c.UserHighId == high)
-                    .Select(c => new { c.Id })
-                    .FirstAsync(ct);
-                conversationId = winner.Id;
-            }
+            var (ok, msg, resolved) = await ResolveOrPrepareConversation(callerId, request.ReceiverId!.Value);
+            if (!ok) return (false, msg, null);
+            conversation = resolved!;
         }
 
-        return await PersistAndBroadcastAsync(senderId, conversationId, recipientId, text, ct);
+        return await PersistMessage(conversation, callerId, cleanText);
     }
 
-
-    public async Task<ChannelMessageDTO> SendChannelMessageAsync(
-        Guid senderId,
-        Guid channelId,
-        string text,
-        CancellationToken ct = default)
+    private async Task<(bool Success, string Message, Conversation? Conversation)> LoadExistingConversation(
+    Guid conversationId, Guid callerId)
     {
-        ValidateText(text);
+        var conversation = await _context.Conversations
+            .FirstOrDefaultAsync(x => x.Id == conversationId);
 
-        var channel = await _db.ServerChannels
-            .AsNoTracking()
-            .Where(c => c.Id == channelId)
-            .Select(c => new { ChannelId = c.Id, ServerId = c.Server.Id })
-            .FirstOrDefaultAsync(ct);
+        if (conversation == null)
+            return (false, "Provided conversation Id is not valid", null);
+
+        if (conversation.UserLowId != callerId && conversation.UserHighId != callerId)
+            return (false, "You are not a part of this conversation", null);
+
+        return (true, string.Empty, conversation);
+    }
+
+    private async Task<(bool Success, string Message, Conversation? Conversation)> ResolveOrPrepareConversation(
+    Guid callerId, Guid receiverId)
+    {
+        var receiver = await _context.Users.FirstOrDefaultAsync(x => x.Id == receiverId);
+        if (receiver == null)
+            return (false, "This user does not exist", null);
+
+        // NOTE: TOCTOU gap — receiver.OnlyFriendsMessages and the friendship row can change
+        // between this check and the message insert below. Accepted for current scope:
+        // policy on "delete friendship vs deliver in-flight message" is undecided.
+        // If addressed later, SELECT FOR UPDATE on the receiver row + Relationship row
+        // would close it, but the policy question must be answered first. SO ＼（〇_ｏ）／
+        if (receiver.OnlyFriendsMessages && !await AreFriends(callerId, receiver.Id))
+            return (false, "This user only allows friends to message them.", null);
+
+        var (UserLowId, UserHighId) = OrderPair(callerId, receiverId);
+
+        var existing = await _context.Conversations.FirstOrDefaultAsync(x =>
+            x.UserLowId == UserLowId && x.UserHighId == UserHighId);
+
+        if (existing != null)
+            return (true, string.Empty, existing);
+
+        // No existing conversation — stage a new one. Not saved yet; PersistMessage
+        // will SaveChanges once for both conversation + message (single transaction,
+        // no orphan conversations on partial failure).
+        var staged = new Conversation { UserLowId = UserLowId, UserHighId = UserHighId };
+        _context.Conversations.Add(staged);
+        return (true, string.Empty, staged);
+    }
+
+    private async Task<bool> AreFriends(Guid a, Guid b)
+    {
+        return await _context.Relationships.AnyAsync(x =>
+            x.Status == RelationshipType.Accepted &&
+            ((x.SenderId == a && x.ReceiverId == b) ||
+             (x.SenderId == b && x.ReceiverId == a)));
+    }
+
+    private static (Guid UserLowId, Guid UserHighId) OrderPair(Guid a, Guid b)
+    {
+        // Convention enforced at DB level via CHECK (UserLowId < UserHighId) + UNIQUE(UserLowId, UserHighId).
+        // Application-side sort is defense-in-depth: avoids a round-trip on every insert
+        // just to discover we violated the constraint.
+        return a.CompareTo(b) < 0 ? (a, b) : (b, a);
+    }
+
+    private async Task<(bool Success, string ResponseText, MessageDTO? Message)> PersistMessage(
+    Conversation conversation, Guid callerId, string text)
+    {
+        var message = new PrivateMessage
+        {
+            Conversation = conversation,
+            SenderId = callerId,
+            Text = text,
+        };
+        _context.PrivateMessages.Add(message);
+
+        var senderInfo = await _context.Users
+        .AsNoTracking()
+        .Where(u => u.Id == callerId)
+        .Select(u => new { u.Username, u.ProfilePictureUrl })
+        .FirstOrDefaultAsync();
+
+        if (senderInfo == null)
+        {
+            return (false, "Sender account not found.", null);
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            return (true, "Message was successfully sent", new MessageDTO
+                {
+                    Id = message.Id,
+                    SentAt = message.CreatedAt,
+                    Sender = new UserDTO
+                    {
+                        Id = callerId,
+                        Username = senderInfo.Username,
+                        ProfilePictureUrl = senderInfo.ProfilePictureUrl,
+                    },
+                    Message = text,
+                }
+            );
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: "23505" })
+        {
+            // Race: another request created the same conversation between our find and our save.
+            // Postgres SQLSTATE 23505 = unique_violation on (UserLowId, UserHighId).
+            // Detach our losing entity, fetch the winner, re-stage the message against it, save once more.
+            _context.Entry(conversation).State = EntityState.Detached;
+            _context.Entry(message).State = EntityState.Detached;
+
+            var winner = await _context.Conversations.FirstAsync(c =>
+                c.UserLowId == conversation.UserLowId && c.UserHighId == conversation.UserHighId);
+
+            _context.PrivateMessages.Add(new PrivateMessage
+            {
+                ConversationId = winner.Id,
+                SenderId = callerId,
+                Text = text,
+            });
+            await _context.SaveChangesAsync();
+            return (true, "Message was successfully sent", new MessageDTO
+            {
+                Id = message.Id,
+                SentAt = message.CreatedAt,
+                Sender = new UserDTO
+                {
+                    Id = callerId,
+                    Username = senderInfo.Username,
+                    ProfilePictureUrl = senderInfo.ProfilePictureUrl,
+                },
+                Message = text,
+            }
+            );
+        }
+    }
+
+    public async Task<(bool, string, PaginatedMessagesDTO?)> GetPrivateMessages(Guid callerId, Guid conversationId, int pageSize, Guid? currentCursor = null)
+    {
+        var exists = await _context.Conversations.AnyAsync(x => x.Id == conversationId
+                                        && (x.UserLowId == callerId || x.UserHighId == callerId));
+        if (!exists)
+        {
+            return (false, "You are not a part of this conversation", null);
+        }
+
+        var query = _context.PrivateMessages.AsQueryable();
+        query = query.Where(m => m.ConversationId == conversationId);
+
+        var response = await PaginateMessageList(pageSize, currentCursor, query);
+
+        return (true, "Messages retrieved", response);
+    }
+
+    public async Task<(bool, string, PaginatedMessagesDTO?)> GetServerChannelMessages(Guid callerId, Guid serverChannelId, int pageSize, Guid? currentCursor = null)
+    {
+        var channel = await _context.ServerChannels.AsNoTracking().FirstOrDefaultAsync(c => c.Id == serverChannelId);
+        string vagueMessage = "You are not a participant of this server, or it does not exist";
 
         if (channel == null)
         {
-            throw new HubException("Channel not found.");
-        }
-            
-        var isMember = await _db.ServerParticipants
-            .AnyAsync(sp => sp.ServerId == channel.ServerId && sp.Participant.Id == senderId, ct);
-
-        if (!isMember)
-        {
-            throw new HubException("You are not a member of this channel's server.");
-        }
-           
-
-        var sender = await _db.Users
-            .AsNoTracking()
-            .Where(u => u.Id == senderId)
-            .Select(u => new { u.Username, u.ProfilePictureUrl })
-            .FirstOrDefaultAsync(ct);
-
-        if (sender == null)
-        {
-
-            throw new HubException("Sender not found.");
+            return (false, vagueMessage, null); // We return this on purpose, so that no one can guess id
         }
 
-        var message = new ChannelMessage
+        bool isParticipent = await _context.ServerParticipants.AnyAsync(p => p.ParticipantId == callerId
+                            && p.ServerId == channel.ServerId);
+
+        if (!isParticipent)
         {
-            Id = Guid.NewGuid(),
-            SenderId = senderId,
-            ServerChannelId = channelId,
-            Text = text.Trim(),
-            Edited = false,
+            return (false, vagueMessage, null);
+        }
+
+        var query = _context.ChannelMessages.AsQueryable();
+        query = query.Where(m => m.ServerChannelId == serverChannelId);
+
+        var response = await PaginateMessageList(pageSize, currentCursor, query);
+        return (true, "Messages retrieved", response);
+    }
+
+    private async Task<PaginatedMessagesDTO> PaginateMessageList(int pageSize, Guid? currentCursor, IQueryable<BaseMessage> query)
+    {
+        if (currentCursor != null)
+        {
+            query = query.Where(m => m.Id <= currentCursor);
+        }
+
+        var result = await query.OrderByDescending(m => m.Id)
+                    .Take(pageSize + 1)
+                    .Select(m => new MessageDTO
+                    {
+                        Id = m.Id,
+                        Message = m.Text,
+                        SentAt = m.CreatedAt,
+                        Sender = new UserDTO { Id = m.Sender.Id, Username = m.Sender.Username }
+                    }
+                    ).ToListAsync();
+
+        bool hasMore = result.Count > pageSize;
+        Guid? nextCursor = hasMore ? result[^1].Id : null;
+
+        if (nextCursor != null)
+        {
+            result.RemoveAt(result.Count - 1);
+        }
+
+        PaginatedMessagesDTO response = new PaginatedMessagesDTO
+        {
+            Messages = result,
+            Next = nextCursor,
+            HasMore = hasMore,
         };
 
-        _db.ChannelMessages.Add(message);
-        await _db.SaveChangesAsync(ct);
+        return response;
+    }
 
-        var dto = new ChannelMessageDTO
+    public async Task<(bool, string)> EditMessage(Guid callerId, Guid messageId, string newText, bool isPrivate)
+    {
+        try
+        {
+            int rows;
+            if (isPrivate)
+            {
+                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE ""PrivateMessages""
+                SET Text = {newText} 
+                WHERE Id = {messageId} 
+                    AND SenderId = {callerId}");
+            }
+            else
+            {
+                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE ""ChannelMessages""
+                SET Text = {newText} 
+                WHERE Id = {messageId} 
+                    AND SenderId = {callerId}");
+            }
+
+            if (rows > 0)
+            {
+                return (true, "Successfully rejected request");
+            }
+            else
+            {
+                return (false, "Request does not exist");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            // log error
+            return (false, "An internal server error occurred while sending the request.");
+        }
+    }
+
+    public async Task<(bool Success, string Message)> DeleteMessage(Guid callerId, Guid messageId, bool isPrivate)
+    {
+        try
+        {
+            int rows;
+            if (isPrivate)
+            {
+                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    DELETE FROM ""PrivateMessages""
+                    WHERE Id = {messageId} 
+                        AND SenderId = {callerId}");
+            }
+            else
+            {
+                {
+                    rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    DELETE FROM ""ChannelMessages""
+                    WHERE Id = {messageId} 
+                        AND SenderId = {callerId}");
+                }
+            }
+
+            if (rows > 0)
+            {
+                return (true, "Message deleted successfully");
+            }
+            else
+            {
+                return (false, "Message does not exist");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, "An internal server error occurred while sending the request.");
+
+        }
+    }
+
+    public async Task<(bool Success, string ResponseMessage, MessageDTO? Message)> SendChannelMessage(Guid callerId, SendChannelMessageDTO request)
+    {
+        var channel = await _context.ServerChannels.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.ChannelId);
+        string vagueMessage = "You are not a participant of this server, or it does not exist";
+
+        if (channel == null)
+        {
+            return (false, vagueMessage, null); // We return this on purpose, so that no one can guess id
+        }
+
+        bool isParticipent = await _context.ServerParticipants.AnyAsync(p => p.ParticipantId == callerId
+                            && p.ServerId == channel.ServerId);
+
+        if (!isParticipent)
+        {
+            return (false, vagueMessage, null);
+        }
+
+        var senderInfo = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == callerId)
+            .Select(u => new { u.Username, u.ProfilePictureUrl })
+            .FirstOrDefaultAsync();
+
+        if (senderInfo == null)
+        {
+            return (false, "Sender account not found.", null);
+        }
+
+        ChannelMessage message = new ChannelMessage
+        {
+            SenderId = callerId,
+            Text = request.Message,
+            ServerChannelId = request.ChannelId,
+        };
+
+        _context.ChannelMessages.Add(message);
+        await _context.SaveChangesAsync();
+
+        return (true, "Message succesfully created", new MessageDTO
         {
             Id = message.Id,
-            ChannelId = channelId,
-            SenderId = senderId,
-            SenderUsername = sender.Username,
-            SenderProfilePictureUrl = sender.ProfilePictureUrl,
-            Text = message.Text,
-            CreatedAt = message.CreatedAt,
-            Edited = false,
-        };
-
-        await _notifier.NotifyGroupAsync(RealtimeGroups.Channel(channelId), RealtimeEvents.ReceiveChannelMessage, dto, ct);
-
-        return dto;
-    }
-
-    private async Task<PrivateMessageDTO> PersistAndBroadcastAsync(
-        Guid senderId,
-        Guid conversationId,
-        Guid otherUserId,
-        string text,
-        CancellationToken ct)
-    {
-        var sender = await _db.Users
-            .AsNoTracking()
-            .Where(u => u.Id == senderId)
-            .Select(u => new { u.Username, u.ProfilePictureUrl })
-            .FirstOrDefaultAsync(ct);
-
-        if (sender == null)
-        {
-            throw new HubException("Sender not found.");
+            SentAt = message.CreatedAt,
+            Sender = new UserDTO 
+            {
+                Id = callerId,
+                Username = senderInfo.Username,
+                ProfilePictureUrl = senderInfo.ProfilePictureUrl,
+            },
+            Message = request.Message,
         }
-            
-
-        var message = new PrivateMessage
-        {
-            Id = Guid.NewGuid(),
-            SenderId = senderId,
-            ConversationId = conversationId,
-            Text = text.Trim(),
-            Edited = false,
-        };
-
-        _db.PrivateMessages.Add(message);
-        await _db.SaveChangesAsync(ct);
-
-        var dto = new PrivateMessageDTO
-        {
-            Id = message.Id,
-            ConversationId = conversationId,
-            SenderId = senderId,
-            SenderUsername = sender.Username,
-            SenderProfilePictureUrl = sender.ProfilePictureUrl,
-            Text = message.Text,
-            CreatedAt = message.CreatedAt,
-            Edited = false,
-        };
-
-        await _notifier.NotifyGroupAsync(RealtimeGroups.Conversation(conversationId), RealtimeEvents.ReceivePrivateMessage, dto, ct);
-
-        await _notifier.NotifyUserAsync(otherUserId, RealtimeEvents.NewMessageNotification, dto, ct);
-
-        return dto;
-    }
-
-    private async Task EnsureCanInitiateAsync(Guid senderId, Guid recipientId, CancellationToken ct)
-    {
-        var recipient = await _db.Users
-            .AsNoTracking()
-            .Where(u => u.Id == recipientId)
-            .Select(u => new { u.Id, u.OnlyFriendsMessages })
-            .FirstOrDefaultAsync(ct);
-
-        if (recipient == null)
-        {
-            throw new HubException("Recipient not found.");
-        }
-            
-
-        if (!recipient.OnlyFriendsMessages)
-        {
-            return;
-        }
-            
-        var areFriends = await _db.Relationships.AnyAsync(r =>
-            r.Status == RelationshipType.Accepted &&
-            ((r.SenderId == senderId && r.ReceiverId == recipientId) ||
-             (r.SenderId == recipientId && r.ReceiverId == senderId)), ct);
-
-        if (!areFriends)
-        {
-            throw new HubException("This user only accepts messages from friends.");
-        }    
-    }
-
-    private static (Guid Low, Guid High) OrderUserPair(Guid a, Guid b) => a.CompareTo(b) < 0 ? (a, b) : (b, a);
-
-    private static void ValidateText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            throw new HubException("Message text cannot be empty.");
-        }
-
-
-        if (text.Length > MaxMessageLength)
-        {
-            throw new HubException($"Message text cannot exceed {MaxMessageLength} characters.");
-        }
+        );
     }
 }
