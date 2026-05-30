@@ -51,7 +51,7 @@ public class MessageService
         if (conversation == null)
             return (false, "Provided conversation Id is not valid", null);
 
-        if (conversation.User1Id != callerId && conversation.User2Id != callerId)
+        if (conversation.UserLowId != callerId && conversation.UserHighId != callerId)
             return (false, "You are not a part of this conversation", null);
 
         return (true, string.Empty, conversation);
@@ -72,10 +72,10 @@ public class MessageService
         if (receiver.OnlyFriendsMessages && !await AreFriends(callerId, receiver.Id))
             return (false, "This user only allows friends to message them.", null);
 
-        var (user1Id, user2Id) = OrderPair(callerId, receiverId);
+        var (UserLowId, UserHighId) = OrderPair(callerId, receiverId);
 
         var existing = await _context.Conversations.FirstOrDefaultAsync(x =>
-            x.User1Id == user1Id && x.User2Id == user2Id);
+            x.UserLowId == UserLowId && x.UserHighId == UserHighId);
 
         if (existing != null)
             return (true, string.Empty, existing);
@@ -83,7 +83,7 @@ public class MessageService
         // No existing conversation — stage a new one. Not saved yet; PersistMessage
         // will SaveChanges once for both conversation + message (single transaction,
         // no orphan conversations on partial failure).
-        var staged = new Conversation { User1Id = user1Id, User2Id = user2Id };
+        var staged = new Conversation { UserLowId = UserLowId, UserHighId = UserHighId };
         _context.Conversations.Add(staged);
         return (true, string.Empty, staged);
     }
@@ -96,9 +96,9 @@ public class MessageService
              (x.SenderId == b && x.ReceiverId == a)));
     }
 
-    private static (Guid User1Id, Guid User2Id) OrderPair(Guid a, Guid b)
+    private static (Guid UserLowId, Guid UserHighId) OrderPair(Guid a, Guid b)
     {
-        // Convention enforced at DB level via CHECK (User1Id < User2Id) + UNIQUE(User1Id, User2Id).
+        // Convention enforced at DB level via CHECK (UserLowId < UserHighId) + UNIQUE(UserLowId, UserHighId).
         // Application-side sort is defense-in-depth: avoids a round-trip on every insert
         // just to discover we violated the constraint.
         return a.CompareTo(b) < 0 ? (a, b) : (b, a);
@@ -146,13 +146,13 @@ public class MessageService
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: "23505" })
         {
             // Race: another request created the same conversation between our find and our save.
-            // Postgres SQLSTATE 23505 = unique_violation on (User1Id, User2Id).
+            // Postgres SQLSTATE 23505 = unique_violation on (UserLowId, UserHighId).
             // Detach our losing entity, fetch the winner, re-stage the message against it, save once more.
             _context.Entry(conversation).State = EntityState.Detached;
             _context.Entry(message).State = EntityState.Detached;
 
             var winner = await _context.Conversations.FirstAsync(c =>
-                c.User1Id == conversation.User1Id && c.User2Id == conversation.User2Id);
+                c.UserLowId == conversation.UserLowId && c.UserHighId == conversation.UserHighId);
 
             _context.PrivateMessages.Add(new PrivateMessage
             {
@@ -180,7 +180,7 @@ public class MessageService
     public async Task<(bool, string, PaginatedMessagesDTO?)> GetPrivateMessages(Guid callerId, Guid conversationId, int pageSize, Guid? currentCursor = null)
     {
         var exists = await _context.Conversations.AnyAsync(x => x.Id == conversationId
-                                        && (x.User1Id == callerId || x.User2Id == callerId));
+                                        && (x.UserLowId == callerId || x.UserHighId == callerId));
         if (!exists)
         {
             return (false, "You are not a part of this conversation", null);

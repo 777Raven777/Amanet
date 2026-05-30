@@ -75,8 +75,3 @@ public class SendChannelMessageDTO
     [MaxLength(4096)]
     public string Message { get; set; }
 }
-
-public class GetPrivateMessages : CursorPaginationRequest
-{
-
-}
