@@ -24,6 +24,14 @@ namespace backend.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            foreach (var type in modelBuilder.Model.GetEntityTypes())
+            {
+                modelBuilder.Entity(type.ClrType)
+                    .Property(nameof(BaseEntity.Id))
+                    .HasValueGenerator<GuidV7ValueGenerator>()
+                    .ValueGeneratedOnAdd();
+            }
+
             modelBuilder.Entity<Relationship>(entity =>
             {
                 entity.HasOne(r => r.Sender)
