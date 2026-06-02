@@ -2,13 +2,6 @@
 
 namespace backend.Models.DTO;
 
-public class CursorPaginationRequest
-{
-    public int? PageSize { get; set; } = 10;
-
-    public Guid? CurrentCursor { get; set; }
-}
-
 public class SendMessageRequest
 {
     [Required(ErrorMessage = "Message is required.")]
@@ -49,9 +42,11 @@ public class MessageDTO
     public string Message { get; set; }
 
     public DateTime SentAt { get; set; }
+
+    public bool Edited { get; set; }
 }
 
-public class PatchMessageDTO
+public class CreateOrPatchMessageDTO
 {
     [Required(ErrorMessage = "Message is required.")]
     [MaxLength(4096)]
@@ -65,13 +60,4 @@ public class PaginatedMessagesDTO
     public Guid? Next {  get; set; }
 
     public bool HasMore { get; set; }
-}
-
-public class SendChannelMessageDTO
-{
-    public Guid ChannelId { get; set; }
-
-    [Required(ErrorMessage = "Message is required.")]
-    [MaxLength(4096)]
-    public string Message { get; set; }
 }

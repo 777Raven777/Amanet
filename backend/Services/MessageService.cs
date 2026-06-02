@@ -1,9 +1,9 @@
 ﻿using backend.Data;
+using backend.Extensions;
 using backend.Models;
 using backend.Models.DTO;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using System.ComponentModel.DataAnnotations;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace backend.Services;
@@ -140,6 +140,7 @@ public class MessageService
                         ProfilePictureUrl = senderInfo.ProfilePictureUrl,
                     },
                     Message = text,
+                    Edited = false,
                 }
             );
         }
@@ -194,22 +195,21 @@ public class MessageService
         return (true, "Messages retrieved", response);
     }
 
-    public async Task<(bool, string, PaginatedMessagesDTO?)> GetServerChannelMessages(Guid callerId, Guid serverChannelId, int pageSize, Guid? currentCursor = null)
+    public async Task<(bool, string, PaginatedMessagesDTO?)> GetServerChannelMessages(Guid callerId, Guid serverId, Guid serverChannelId, int pageSize, Guid? currentCursor = null)
     {
-        var channel = await _context.ServerChannels.AsNoTracking().FirstOrDefaultAsync(c => c.Id == serverChannelId);
+        bool channelExists = await _context.ServerChannels.AnyAsync(c => c.Id == serverChannelId && c.ServerId == serverId);
         string vagueMessage = "You are not a participant of this server, or it does not exist";
 
-        if (channel == null)
+        if (!channelExists)
         {
             return (false, vagueMessage, null); // We return this on purpose, so that no one can guess id
         }
 
-        bool isParticipent = await _context.ServerParticipants.AnyAsync(p => p.ParticipantId == callerId
-                            && p.ServerId == channel.ServerId);
+        (bool access, string msg) = await _context.VerifyUserAccessAsync(callerId, serverId, Permissions.ReadMessages);
 
-        if (!isParticipent)
+        if (!access)
         {
-            return (false, vagueMessage, null);
+            return (false, msg, null);
         }
 
         var query = _context.ChannelMessages.AsQueryable();
@@ -233,7 +233,8 @@ public class MessageService
                         Id = m.Id,
                         Message = m.Text,
                         SentAt = m.CreatedAt,
-                        Sender = new UserDTO { Id = m.Sender.Id, Username = m.Sender.Username }
+                        Sender = new UserDTO { Id = m.Sender.Id, Username = m.Sender.Username },
+                        Edited = m.Edited,
                     }
                     ).ToListAsync();
 
@@ -255,35 +256,24 @@ public class MessageService
         return response;
     }
 
-    public async Task<(bool, string)> EditMessage(Guid callerId, Guid messageId, string newText, bool isPrivate)
+    public async Task<(bool, string)> EditPrivateMessage(Guid callerId, Guid messageId, string newText)
     {
         try
         {
             int rows;
-            if (isPrivate)
-            {
-                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
-                UPDATE ""PrivateMessages""
-                SET Text = {newText} 
-                WHERE Id = {messageId} 
-                    AND SenderId = {callerId}");
-            }
-            else
-            {
-                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
-                UPDATE ""ChannelMessages""
-                SET Text = {newText} 
-                WHERE Id = {messageId} 
-                    AND SenderId = {callerId}");
-            }
+            rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE ""PrivateMessages""
+            SET Text = {newText}, Edited = {true}
+            WHERE Id = {messageId} 
+                AND SenderId = {callerId}");
 
             if (rows > 0)
             {
-                return (true, "Successfully rejected request");
+                return (true, "Successfully edited message");
             }
             else
             {
-                return (false, "Request does not exist");
+                return (false, "Message does not exist");
             }
 
         }
@@ -294,27 +284,48 @@ public class MessageService
         }
     }
 
-    public async Task<(bool Success, string Message)> DeleteMessage(Guid callerId, Guid messageId, bool isPrivate)
+    public async Task<(bool, string)> EditChannelMessage(Guid callerId, Guid messageId, Guid serverId, string newText)
+    {
+        try
+        {
+            (bool access, string msg) = await _context.VerifyUserAccessAsync(callerId, serverId, Permissions.EditMessages);
+
+            if (!access)
+            {
+                return (false, msg);
+            }
+
+            int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE ""ChannelMessages""
+                SET Text = {newText}, Edited = {true}
+                WHERE Id = {messageId} 
+                    AND SenderId = {callerId}");
+
+            if (rows > 0)
+            {
+                return (true, "Successfully edited message");
+            }
+            else
+            {
+                return (false, "Message does not exist");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            // log error
+            return (false, "An internal server error occurred while sending the request.");
+        }
+    }
+    public async Task<(bool Success, string Message)> DeletePrivateMessage(Guid callerId, Guid messageId)
     {
         try
         {
             int rows;
-            if (isPrivate)
-            {
-                rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
-                    DELETE FROM ""PrivateMessages""
-                    WHERE Id = {messageId} 
-                        AND SenderId = {callerId}");
-            }
-            else
-            {
-                {
-                    rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
-                    DELETE FROM ""ChannelMessages""
-                    WHERE Id = {messageId} 
-                        AND SenderId = {callerId}");
-                }
-            }
+            rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                DELETE FROM ""PrivateMessages""
+                WHERE Id = {messageId} 
+                    AND SenderId = {callerId}");
 
             if (rows > 0)
             {
@@ -332,22 +343,54 @@ public class MessageService
         }
     }
 
-    public async Task<(bool Success, string ResponseMessage, MessageDTO? Message)> SendChannelMessage(Guid callerId, SendChannelMessageDTO request)
+    public async Task<(bool Success, string Message)> DeleteChannelMessage(Guid callerId, Guid messageId, Guid serverId)
     {
-        var channel = await _context.ServerChannels.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.ChannelId);
+        try
+        {
+            int rows;
+            (bool access, string msg) = await _context.VerifyUserAccessAsync(callerId, serverId, Permissions.DeleteMessages);
+
+            if (!access)
+            {
+                return (false, msg);
+            }
+
+            rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                DELETE FROM ""ChannelMessages""
+                WHERE Id = {messageId} 
+                    AND SenderId = {callerId}");
+
+            if (rows > 0)
+            {
+                return (true, "Message deleted successfully");
+            }
+            else
+            {
+                return (false, "Message does not exist");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, "An internal server error occurred while sending the request.");
+
+        }
+    }
+
+    public async Task<(bool Success, string ResponseMessage, MessageDTO? Message)> SendChannelMessage(Guid callerId, Guid serverId, Guid channelId, CreateOrPatchMessageDTO request)
+    {
+        bool channelExists = await _context.ServerChannels.AnyAsync(c => c.Id == channelId && c.ServerId == serverId);
         string vagueMessage = "You are not a participant of this server, or it does not exist";
 
-        if (channel == null)
+        if (!channelExists)
         {
             return (false, vagueMessage, null); // We return this on purpose, so that no one can guess id
         }
 
-        bool isParticipent = await _context.ServerParticipants.AnyAsync(p => p.ParticipantId == callerId
-                            && p.ServerId == channel.ServerId);
+        (bool access, string msg) = await _context.VerifyUserAccessAsync(callerId, serverId, Permissions.SendMessages);
 
-        if (!isParticipent)
+        if (!access)
         {
-            return (false, vagueMessage, null);
+            return (false, msg, null);
         }
 
         var senderInfo = await _context.Users
@@ -365,7 +408,7 @@ public class MessageService
         {
             SenderId = callerId,
             Text = request.Message,
-            ServerChannelId = request.ChannelId,
+            ServerChannelId = channelId,
         };
 
         _context.ChannelMessages.Add(message);
@@ -382,6 +425,7 @@ public class MessageService
                 ProfilePictureUrl = senderInfo.ProfilePictureUrl,
             },
             Message = request.Message,
+            Edited = false,
         }
         );
     }

@@ -21,7 +21,7 @@ namespace backend.Controllers
 
         [Authorize]
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<UserDTO>>> SearchUsers(string username, [FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<PaginatedUserListDTO>> SearchUsers(string username, [FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid callerId = Guid.Parse(userId);
@@ -29,8 +29,8 @@ namespace backend.Controllers
             pageSize = Math.Clamp(pageSize, 1, 50);
             currentPage = Math.Clamp(currentPage, 1, int.MaxValue);
 
-            var users = await _mainService.SearchUsersAsync(username, callerId, currentPage, pageSize);
-            return Ok(users);
+            var response = await _mainService.SearchUsersAsync(username, callerId, currentPage, pageSize);
+            return Ok(response);
         }
 
         [HttpPost("register")]

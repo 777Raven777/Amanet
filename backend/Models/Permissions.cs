@@ -2,12 +2,13 @@
 {
     public enum Permissions
     {
-        SendMessage,
+        SendMessages,
         DeleteMessages,
-        BanUser,
+        BanUsers,
         ReadMessages,
         EditMessages,
         InviteUsers,
-        EditUser
+        EditUsers,
+        CreateChannels,
     }
 }
