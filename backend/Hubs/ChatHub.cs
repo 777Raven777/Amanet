@@ -1,4 +1,5 @@
 ﻿using backend.Data;
+using backend.Models.DTO;
 using backend.Realtime;
 using backend.Realtime.ConnectionTracking;
 using backend.Services;
@@ -64,7 +65,6 @@ public class ChatHub : Hub
         if (!isParticipant)
         {
             throw new HubException("You are not a participant of this conversation.");
-
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.Conversation(conversationId));
@@ -78,13 +78,95 @@ public class ChatHub : Hub
     public async Task SendPrivateMessage(Guid conversationId, string text)
     {
         var userId = Context.GetUserId();
-        await _messages.SendMessageInConversationAsync(userId, conversationId, text);
+
+        var request = new SendMessageRequest
+        {
+            Message = text,
+            ConversationId = conversationId,
+        };
+
+        var (success, responseText, message) = await _messages.SendPrivateMessage(userId, request);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Conversation(conversationId))
+            .SendAsync(RealtimeEvents.ReceivePrivateMessage, message);
     }
 
     public async Task SendMessageToUser(Guid recipientId, string text)
     {
         var userId = Context.GetUserId();
-        await _messages.SendMessageToUserAsync(userId, recipientId, text);
+
+        var request = new SendMessageRequest
+        {
+            Message = text,
+            ReceiverId = recipientId,
+        };
+
+        var (success, responseText, message) = await _messages.SendPrivateMessage(userId, request);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        // Notify the sender's own connections
+        await Clients
+            .Group(RealtimeGroups.User(userId))
+            .SendAsync(RealtimeEvents.ReceivePrivateMessage, message);
+
+        // Notify the recipient so they see the message even if they
+        // haven't joined the conversation group yet
+        await Clients
+            .Group(RealtimeGroups.User(recipientId))
+            .SendAsync(RealtimeEvents.NewMessageNotification, message);
+    }
+
+    public async Task EditPrivateMessage(Guid conversationId, Guid messageId, string newText)
+    {
+        var userId = Context.GetUserId();
+
+        var (success, responseText) = await _messages.EditMessage(userId, messageId, newText, true);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Conversation(conversationId))
+            .SendAsync(RealtimeEvents.MessageEdited, new
+            {
+                MessageId = messageId,
+                ConversationId = conversationId,
+                NewText = newText,
+                EditedBy = userId,
+            });
+    }
+
+    public async Task DeletePrivateMessage(Guid conversationId, Guid messageId)
+    {
+        var userId = Context.GetUserId();
+
+        var (success, responseText) = await _messages.DeleteMessage(userId, messageId, true);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Conversation(conversationId))
+            .SendAsync(RealtimeEvents.MessageDeleted, new
+            {
+                MessageId = messageId,
+                ConversationId = conversationId,
+                DeletedBy = userId,
+            });
     }
 
     public async Task TypingInConversation(Guid conversationId)
@@ -128,7 +210,66 @@ public class ChatHub : Hub
     public async Task SendChannelMessage(Guid channelId, string text)
     {
         var userId = Context.GetUserId();
-        await _messages.SendChannelMessageAsync(userId, channelId, text);
+
+        var request = new SendChannelMessageDTO
+        {
+            ChannelId = channelId,
+            Message = text,
+        };
+
+        var (success, responseText, message) = await _messages.SendChannelMessage(userId, request);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Channel(channelId))
+            .SendAsync(RealtimeEvents.ReceiveChannelMessage, message);
+    }
+
+    public async Task EditChannelMessage(Guid channelId, Guid messageId, string newText)
+    {
+        var userId = Context.GetUserId();
+
+        var (success, responseText) = await _messages.EditMessage(userId, messageId, newText, false);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Channel(channelId))
+            .SendAsync(RealtimeEvents.MessageEdited, new
+            {
+                MessageId = messageId,
+                ChannelId = channelId,
+                NewText = newText,
+                EditedBy = userId,
+            });
+    }
+
+    public async Task DeleteChannelMessage(Guid channelId, Guid messageId)
+    {
+        var userId = Context.GetUserId();
+
+        var (success, responseText) = await _messages.DeleteMessage(userId, messageId, false);
+
+        if (!success)
+        {
+            throw new HubException(responseText);
+        }
+
+        await Clients
+            .Group(RealtimeGroups.Channel(channelId))
+            .SendAsync(RealtimeEvents.MessageDeleted, new
+            {
+                MessageId = messageId,
+                ChannelId = channelId,
+                DeletedBy = userId,
+            });
     }
 
     public async Task TypingInChannel(Guid channelId)

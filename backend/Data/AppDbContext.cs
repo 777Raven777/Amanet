@@ -17,6 +17,7 @@ namespace backend.Data
         public DbSet<ServerParticipant> ServerParticipants { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Token> Tokens { get; set; }
+        public DbSet<ServerInvite> ServerInvites { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         { }
@@ -64,6 +65,24 @@ namespace backend.Data
                 entity.ToTable(t => t.HasCheckConstraint(
                     "CK_Conversation_UserOrder",
                     "\"UserLowId\" < \"UserHighId\""));
+            });
+
+            modelBuilder.Entity<ServerInvite>(entity =>
+            {
+                entity.HasOne(i => i.Server)
+                      .WithMany()
+                      .HasForeignKey(i => i.ServerId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasOne(i => i.Inviter)
+                      .WithMany()
+                      .HasForeignKey(i => i.InviterId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(i => i.InvitedUser)
+                      .WithMany()
+                      .HasForeignKey(i => i.InvitedUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
