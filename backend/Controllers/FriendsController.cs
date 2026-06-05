@@ -1,17 +1,9 @@
 ﻿using backend.Models;
 using backend.Models.DTO;
 using backend.Services;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using System.Collections.Generic;
 
 namespace backend.Controllers;
 
@@ -19,19 +11,19 @@ namespace backend.Controllers;
 [Route("api/v1/[controller]")]
 public class FriendsController : ControllerBase
 {
-	private readonly FriendService _service;
+    private readonly FriendService _service;
 
     public FriendsController(FriendService service)
-	{
-		_service = service;
-	}
+    {
+        _service = service;
+    }
 
-	[Authorize(Policy = "CanAddFriends")]
-	[HttpPost]
-	public async Task<ActionResult> SendRequest(SendRequestDTO sendRequestDTO)
-	{
-		try
-		{
+    [Authorize(Policy = "CanAddFriends")]
+    [HttpPost]
+    public async Task<ActionResult> SendRequest(SendRequestDTO sendRequestDTO)
+    {
+        try
+        {
             Guid invitedGuid = Guid.Parse(sendRequestDTO.Id);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid callerId = Guid.Parse(userId);
@@ -41,10 +33,10 @@ public class FriendsController : ControllerBase
 
             else return BadRequest(msg);
         }
-		catch (FormatException e)
-		{
-			return BadRequest("User id was not valid UUID");
-		}
+        catch (FormatException e)
+        {
+            return BadRequest("User id was not valid UUID");
+        }
     }
 
     [Authorize(Policy = "CanAddFriends")]
@@ -72,29 +64,21 @@ public class FriendsController : ControllerBase
     }
 
     [Authorize(Policy = "CanAddFriends")]
-    [HttpDelete]
-    public async Task<ActionResult> DeleteRequest(string requestId)
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteRequest(Guid id)
     {
-        try
-        {
-            Guid requestGuid = Guid.Parse(requestId);
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            Guid callerId = Guid.Parse(userId);
-            (bool success, string msg) = await _service.DeleteRequest(requestGuid, callerId);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid callerId = Guid.Parse(userId);
+        (bool success, string msg) = await _service.DeleteRequest(id, callerId);
 
-            if (success) return StatusCode(204);
+        if (success) return StatusCode(204);
 
-            else return BadRequest(msg);
-        }
-        catch (FormatException e)
-        {
-            return BadRequest("Request id was not valid UUID");
-        }
+        else return BadRequest(msg);
     }
 
     [Authorize]
     [HttpGet("requests/received")]
-    public async Task<ActionResult<IEnumerable<RelationshipDTO>>> GetReceivedRequests([FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult<PaginatedRequestListDTO>> GetReceivedRequests([FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         Guid callerId = Guid.Parse(userId);
@@ -109,7 +93,7 @@ public class FriendsController : ControllerBase
 
     [Authorize]
     [HttpGet("requests/sent")]
-    public async Task<ActionResult<IEnumerable<RelationshipDTO>>> GetSentRequests([FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult<PaginatedRequestListDTO>> GetSentRequests([FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         Guid callerId = Guid.Parse(userId);

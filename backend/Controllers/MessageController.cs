@@ -18,8 +18,8 @@ public class MessageController : ControllerBase
     }
 
     [Authorize(Policy="CanSendDirectMessages")]
-    [HttpPost("dms/{id}/sent-message")]
-    public async Task<ActionResult<MessageDTO>> SentPrivateMessage(SendMessageRequest request)
+    [HttpPost("dms/send-message")]
+    public async Task<ActionResult<MessageDTO>> SendPrivateMessage(SendMessageRequest request)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
         (bool success, string responseText, MessageDTO? message) = await _service.SendPrivateMessage(callerId, request);
@@ -32,11 +32,11 @@ public class MessageController : ControllerBase
     }
 
     [Authorize(Policy = "CanUseServers")]
-    [HttpPost("server-channels/send-message")]
-    public async Task<ActionResult<MessageDTO>> SentChannelMessage(Guid id, SendChannelMessageDTO request)
+    [HttpPost("servers/{serverId}/server-channels/{channelId}/send-message")]
+    public async Task<ActionResult<MessageDTO>> SendChannelMessage(Guid serverId, Guid channelId, CreateOrPatchMessageDTO request)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        (bool success, string responseText, MessageDTO? message) = await _service.SendChannelMessage(callerId, request);
+        (bool success, string responseText, MessageDTO? message) = await _service.SendChannelMessage(callerId, serverId, channelId, request);
 
         if (success)
         {
@@ -46,15 +46,14 @@ public class MessageController : ControllerBase
     }
 
     [Authorize]
-    [HttpGet("dms/{id}/get-messages")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> GetPrivateMessages(Guid id, CursorPaginationRequest request)
+    [HttpGet("dms/{conversationId}/get-messages")]
+    public async Task<ActionResult<PaginatedMessagesDTO>> GetPrivateMessages(Guid conversationId, [FromQuery] Guid? cursor = null, [FromQuery] int pageSize = 20)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-        int pageSize = request.PageSize ?? 10;
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        (bool success, string responseText, PaginatedMessagesDTO? messages) = await _service.GetPrivateMessages(callerId, id, pageSize, request.CurrentCursor);
+        (bool success, string responseText, PaginatedMessagesDTO? messages) = await _service.GetPrivateMessages(callerId, conversationId, pageSize, cursor);
 
         if (success)
         {
@@ -63,16 +62,15 @@ public class MessageController : ControllerBase
         return BadRequest(responseText);
     }
 
-    [Authorize]
-    [HttpGet("server-channels/{id}/get-messages")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> GetServerChannelMessages(Guid id, CursorPaginationRequest request)
+    [Authorize(Policy = "CanUseServers")]
+    [HttpGet("servers/{serverId}/server-channels/{channelId}/get-messages")]
+    public async Task<ActionResult<PaginatedMessagesDTO>> GetServerChannelMessages(Guid serverId, Guid channelId, [FromQuery] Guid? cursor = null, [FromQuery] int pageSize = 20)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-        int pageSize = request.PageSize ?? 10;
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        (bool success, string responseText, PaginatedMessagesDTO? messages) = await _service.GetServerChannelMessages(callerId, id, pageSize, request.CurrentCursor);
+        (bool success, string responseText, PaginatedMessagesDTO? messages) = await _service.GetServerChannelMessages(callerId, serverId, channelId, pageSize, cursor);
 
         if (success)
         {
@@ -81,12 +79,40 @@ public class MessageController : ControllerBase
         return BadRequest(responseText);
     }
 
-    [Authorize]
-    [HttpPatch("server-channels/{id}")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> PatchChannelMessage(Guid id, PatchMessageDTO request)
+    [Authorize(Policy = "CanUseServers")]
+    [HttpPatch("servers/{serverId}/server-channels/{messageId}")]
+    public async Task<ActionResult> PatchChannelMessage(Guid serverId, Guid messageId, CreateOrPatchMessageDTO request)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        (bool success, string responseText) = await _service.EditMessage(callerId, id, request.Message, false);
+        (bool success, string responseText) = await _service.EditChannelMessage(callerId, messageId, serverId, request.Message);
+
+        if (success)
+        {
+            return Ok(responseText);
+        }
+        return BadRequest(responseText);
+    }
+
+    [Authorize(Policy = "CanSendDirectMessages")]
+    [HttpPatch("dms/{messageId}")]
+    public async Task<ActionResult> PatchPrivateMessage(Guid messageId, CreateOrPatchMessageDTO request)
+    {
+        Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        (bool success, string responseText) = await _service.EditPrivateMessage(callerId, messageId, request.Message);
+
+        if (success)
+        {
+            return Ok(responseText);
+        }
+        return BadRequest(responseText);
+    }
+
+    [Authorize(Policy = "CanUseServers")]
+    [HttpDelete("servers/{serverId}/server-channels/{messageId}")]
+    public async Task<ActionResult> DeleteChannelMessage(Guid serverId, Guid messageId)
+    {
+        Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        (bool success, string responseText) = await _service.DeleteChannelMessage(callerId, messageId, serverId);
 
         if (success)
         {
@@ -96,39 +122,11 @@ public class MessageController : ControllerBase
     }
 
     [Authorize]
-    [HttpPatch("dms/{id}")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> PatchPrivateMessage(Guid id, PatchMessageDTO request)
+    [HttpDelete("dms/{messageId}")]
+    public async Task<ActionResult> DeletePrivateMessage(Guid messageId)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        (bool success, string responseText) = await _service.EditMessage(callerId, id, request.Message, true);
-
-        if (success)
-        {
-            return Ok(responseText);
-        }
-        return BadRequest(responseText);
-    }
-
-    [Authorize]
-    [HttpDelete("server-channels/{id}")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> DeleteChannelMessage(Guid id)
-    {
-        Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        (bool success, string responseText) = await _service.DeleteMessage(callerId, id, false);
-
-        if (success)
-        {
-            return Ok(responseText);
-        }
-        return BadRequest(responseText);
-    }
-
-    [Authorize]
-    [HttpDelete("dms/{id}")]
-    public async Task<ActionResult<PaginatedMessagesDTO>> DeletePrivateMessage(Guid id)
-    {
-        Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        (bool success, string responseText) = await _service.DeleteMessage(callerId, id, true);
+        (bool success, string responseText) = await _service.DeletePrivateMessage(callerId, messageId);
 
         if (success)
         {

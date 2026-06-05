@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Runtime.CompilerServices;
-using Microsoft.AspNetCore.Http;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace backend.Models.DTO
 {
@@ -35,5 +31,10 @@ namespace backend.Models.DTO
     {
         [Required]
         public string Id { get; set; }
+    }
+
+    public class PaginatedRequestListDTO : PaginatedListDTO
+    {
+        public List<RelationshipDTO> Relationships {  get; set; }
     }
 }

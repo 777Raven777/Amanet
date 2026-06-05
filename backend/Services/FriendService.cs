@@ -86,9 +86,9 @@ namespace backend.Services
             }
         }
 
-        public async Task<List<RelationshipDTO>> GetReceivedRequests(Guid callerId, int currentPage, int pageSize)
+        public async Task<PaginatedRequestListDTO> GetReceivedRequests(Guid callerId, int currentPage, int pageSize)
         {
-            return await _context.Relationships
+            var relationships = await _context.Relationships
                 .Where(x => x.ReceiverId == callerId && x.Status == RelationshipType.Waiting)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new RelationshipDTO
@@ -98,13 +98,27 @@ namespace backend.Services
                     Sender = new UserDTO { Id = x.Sender.Id, Username = x.Sender.Username, ProfilePictureUrl = x.Sender.ProfilePictureUrl },
                 })
                 .Skip((currentPage - 1) * pageSize)
-                .Take(pageSize)
+                .Take(pageSize+1)
                 .ToListAsync();
+
+            bool nextPage = relationships.Count > pageSize;
+            if (nextPage)
+            {
+                relationships.RemoveAt(relationships.Count);
+            }
+
+            return new PaginatedRequestListDTO
+            {
+                PageSize = pageSize,
+                CurrentPage = currentPage,
+                NextPage = nextPage,
+                Relationships = relationships,
+            };
         }
 
-        public async Task<List<RelationshipDTO>> GetSentRequests(Guid callerId, int currentPage, int pageSize)
+        public async Task<PaginatedRequestListDTO> GetSentRequests(Guid callerId, int currentPage, int pageSize)
         {
-            return await _context.Relationships
+            var relationships = await _context.Relationships
                 .Where(x => x.SenderId == callerId && x.Status == RelationshipType.Waiting)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new RelationshipDTO
@@ -116,6 +130,20 @@ namespace backend.Services
                 .Skip((currentPage - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
+            bool nextPage = relationships.Count > pageSize;
+            if (nextPage)
+            {
+                relationships.RemoveAt(relationships.Count);
+            }
+
+            return new PaginatedRequestListDTO
+            {
+                PageSize = pageSize,
+                CurrentPage = currentPage,
+                NextPage = nextPage,
+                Relationships = relationships,
+            };
         }
 
         public async Task<List<FriendDTO>> RetrieveActiveRelationship(Guid callerId, int currentPage, int pageSize)

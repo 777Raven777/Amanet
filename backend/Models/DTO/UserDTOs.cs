@@ -56,4 +56,9 @@ namespace backend.Models.DTO
 
         public IFormFile? ProfilePicture { get; set; }
     }
+
+    public class PaginatedUserListDTO : PaginatedListDTO
+    {
+        public List<UserDTO> Users { get; set; }
+    }
 }

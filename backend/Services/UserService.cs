@@ -21,15 +21,29 @@ namespace backend.Services
             _fileService = fileService;
         }
 
-        public async Task<List<UserDTO>> SearchUsersAsync(string username, Guid callerId, int currentPage, int pageSize)
+        public async Task<PaginatedUserListDTO> SearchUsersAsync(string username, Guid callerId, int currentPage, int pageSize)
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Where(x => x.Username.Contains(username) && x.Id != callerId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new UserDTO { Id = x.Id, Username = x.Username })
                 .Skip((currentPage-1) * pageSize)
-                .Take(pageSize)
+                .Take(pageSize+1)
                 .ToListAsync();
+
+            bool nextPage = users.Count > pageSize;
+            if (nextPage) 
+            { 
+                users.RemoveAt(users.Count -1);
+            }
+
+            return new PaginatedUserListDTO
+            {
+                PageSize = pageSize,
+                CurrentPage = currentPage,
+                NextPage = nextPage,
+                Users = users
+            }
         }
 
         public async Task<UserDTO> AddUser(string email, string username, string password, IFormFile ProfilePicture)
