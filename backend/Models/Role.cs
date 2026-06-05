@@ -4,6 +4,7 @@
     {
         public string Name { get; set; }
         public List<Permissions> Actions { get; set; }
-        public Server server { get; set; }
+        public Server Server { get; set; }
+        public Guid ServerId { get; set; }
     }
 }

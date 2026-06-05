@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/v1/servers")]
+[Route("api/v1/servers/{serverId}/channels")]
 public class ServerChannelController : ControllerBase
 {
     private readonly ServerChannelService _service;
@@ -18,7 +18,7 @@ public class ServerChannelController : ControllerBase
     }
 
     [Authorize(Policy = "CanUseServers")]
-    [HttpPost("{serverId}/server-channels")]
+    [HttpPost]
     public async Task<ActionResult<ServerChannelDTO>> CreateServerChannel(Guid serverId, CreateOrPatchChannelDTO request)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -32,7 +32,7 @@ public class ServerChannelController : ControllerBase
     }
 
     [Authorize(Policy = "CanUseServers")]
-    [HttpDelete("{serverid}/server-channels/{channelId}")]
+    [HttpDelete("{channelId}")]
     public async Task<ActionResult> DeleteServerChannel(Guid serverId, Guid channelId)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -46,7 +46,7 @@ public class ServerChannelController : ControllerBase
     }
 
     [Authorize(Policy = "CanUseServers")]
-    [HttpPatch("{serverid}/server-channels/{channelId}")]
+    [HttpPatch("{channelId}")]
     public async Task<ActionResult<ServerChannelDTO>> EditServerChannel(Guid serverId, Guid channelId, CreateOrPatchChannelDTO request)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -60,7 +60,7 @@ public class ServerChannelController : ControllerBase
     }
 
     [Authorize(Policy = "CanUseServers")]
-    [HttpGet("{serverId}/server-channels")]
+    [HttpGet]
     public async Task<ActionResult<IEnumerable<ServerChannelDTO?>>> ListServerChannels(Guid serverId)
     {
         Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));

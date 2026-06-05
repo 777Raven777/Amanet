@@ -10,5 +10,6 @@
         InviteUsers,
         EditUsers,
         CreateChannels,
+        ModifyRoles,
     }
 }

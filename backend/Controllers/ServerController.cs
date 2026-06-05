@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/servers")]
 public class ServerController : ControllerBase
 {
     private readonly ServerService _service;
