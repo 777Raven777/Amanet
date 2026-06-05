@@ -43,13 +43,18 @@ namespace backend.Services
                 CurrentPage = currentPage,
                 NextPage = nextPage,
                 Users = users
-            }
+            };
         }
 
-        public async Task<UserDTO> AddUser(string email, string username, string password, IFormFile ProfilePicture)
+        public async Task<(bool Success, string Message, UserDTO? User)> AddUser(string email, string username, string password, IFormFile ProfilePicture)
         {
             string cleanEmail = email.Trim().ToLowerInvariant();
             string cleanUsername = username.Trim();
+
+            if (String.IsNullOrWhiteSpace(cleanUsername) || String.IsNullOrEmpty(cleanUsername))
+            {
+                return (false, "Username cannot be empty", null);
+            }
 
             User user = new User
             {
@@ -73,7 +78,7 @@ namespace backend.Services
                 Id = user.Id,
                 Username = user.Username,
             };
-            return createdUser;
+            return (true, "User created", createdUser);
         }
 
         public async Task<bool> UniqueEmailAndUsername(string email, string username)

@@ -37,7 +37,9 @@ public class ServerChannelDTO
 
 public class CreateOrPatchChannelDTO
 {
-    [MaxLength(120), MinLength(1)]
+    [MaxLength(120)]
+    [MinLength(1)]
+    [RegularExpression(@".*\S.*", ErrorMessage = "Name cannot be empty or consist only of whitespace.")]
     public string? Name { get; set; }
 }
 

@@ -1,7 +1,8 @@
 ﻿using backend.Data;
-using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTO;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 namespace backend.Services;
 
 public class ServerService
@@ -13,15 +14,48 @@ public class ServerService
         _context = context;
     }
 
-    public async Task<(bool Success, string Message, ServerDTO Server)> CreateServer(Guid callerId, string serverName)
+    public async Task<(bool Success, string Message, ServerDTO? Server)> CreateServer(Guid callerId, string serverName)
     {
+        if (string.IsNullOrWhiteSpace(serverName))
+        {
+            return (false, "Server name cannot be empty.", null);
+        }
+
         Server server = new Server
         {
             Name = serverName,
             CreatorId = callerId,
         };
 
-        _context.Add(server);
+        Role defaultRole = new Role
+        {
+            Name = "default",
+            IsSystem = true,
+            Actions = new List<Permissions> { Permissions.SendMessages, Permissions.DeleteMessages, Permissions.ReadMessages, Permissions.EditMessages, Permissions.InviteUsers },
+            Server = server
+        };
+
+        Role adminRole = new Role
+        {
+            Name = "admin",
+            IsSystem = true,
+            Actions = new List<Permissions> { Permissions.SendMessages, Permissions.DeleteMessages, Permissions.ReadMessages, Permissions.EditMessages, Permissions.InviteUsers,
+                Permissions.BanUsers, Permissions.EditUsers, Permissions.CreateChannels, Permissions.ModifyRoles },
+            Server = server
+        };
+
+        ServerParticipant admin = new ServerParticipant
+        {
+            Server = server,
+            ParticipantId = callerId,
+            Role = adminRole
+        };
+
+        _context.Servers.Add(server);
+        _context.Roles.Add(defaultRole);
+        _context.Roles.Add(adminRole);
+        _context.ServerParticipants.Add(admin);
+
         await _context.SaveChangesAsync();
         return (true, "Server successfully created", new ServerDTO
         {
@@ -55,6 +89,11 @@ public class ServerService
 
     public async Task<(bool Success, string Message, ServerDTO? Server)> EditServer(Guid callerId, Guid serverId, PatchServerDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return (false, "Server name cannot be empty.", null);
+        }
+
         int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE ""Servers"" 
             SET Name={request.Name}

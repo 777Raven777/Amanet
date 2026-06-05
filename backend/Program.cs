@@ -1,10 +1,13 @@
 using backend.Cache;
-using backend.Hubs;
 using backend.Data;
+using backend.Hubs;
+using backend.Hubs;
 using backend.Middleware;
 using backend.Models;
 //added for testing purposes 
 using backend.Models.DTO;
+using backend.Realtime;
+using backend.Realtime.ConnectionTracking;
 using backend.Realtime.ConnectionTracking;
 using backend.Services;
 using Microsoft.AspNetCore.Antiforgery;
@@ -16,13 +19,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.FileProviders;
 using StackExchange.Redis;
+using StackExchange.Redis;
 using System;
 using System.Data;
-
-using backend.Hubs;
-using backend.Realtime;
-using backend.Realtime.ConnectionTracking;
-using StackExchange.Redis;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +40,10 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<FriendService>();
+builder.Services.AddScoped<ServerChannelService>();
+builder.Services.AddScoped<ServerService>();
+builder.Services.AddScoped<ServerParticipantService>();
+builder.Services.AddScoped<RoleService>();
 
 builder.Services.AddScoped<MessageService>();
 builder.Services.AddScoped<PresenceService>();
@@ -68,6 +72,12 @@ builder.Services.AddAuthorization(options =>
         nameof(TokenPermissions.CanSendDirectMessages),
         policy => policy.RequireClaim(nameof(TokenPermissions.CanSendDirectMessages), "allowed"));
 });
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 /* builder.Services.AddStackExchangeRedisCache(options =>
 {

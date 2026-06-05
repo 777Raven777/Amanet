@@ -116,13 +116,6 @@ public class ServerChannelService
 
     public async Task<(bool Success, string Message)> DeleteServerChannel(Guid callerId, Guid serverId, Guid channelId)
     {
-        var channel = await _context.ServerChannels.FirstOrDefaultAsync(c => c.Id == channelId && c.ServerId == serverId);
-
-        if (channel == null)
-        {
-            return (false, "Either you are not a part of the server, or server does not exist");
-        }
-
         (bool allowed, string msg) = await _context.VerifyUserAccessAsync(callerId, serverId, Permissions.CreateChannels);
 
         if (!allowed)
@@ -130,9 +123,16 @@ public class ServerChannelService
             return (false, msg);
         }
 
-        _context.ServerChannels.Remove(channel);
-        await _context.SaveChangesAsync();
-        return (true, "Channel was successfully removed");
+        int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    DELETE FROM ""ServerChannels""
+                    WHERE Id = {channelId} 
+                        AND ServerId == {serverId}");
+
+        if (rows > 0)
+        {
+            return (true, "Channel was successfully deleted");
+        }
+        return (false, "No channel with this Id found");
     }
 
     public async Task<(bool Success, string Message, IEnumerable<ServerChannelDTO>? ServerChannels)> ListServerChannels(Guid callerId, Guid serverId)

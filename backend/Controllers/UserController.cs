@@ -12,11 +12,13 @@ namespace backend.Controllers
     {
         private readonly UserService _mainService;
         private readonly TokenService _tokenService;
+        private readonly ServerParticipantService _serverService;
 
-        public UserController(UserService mainService, TokenService tokenService)
+        public UserController(UserService mainService, TokenService tokenService, ServerParticipantService serverService)
         {
             _mainService = mainService;
             _tokenService = tokenService;
+            _serverService = serverService;
         }
 
         [Authorize]
@@ -49,7 +51,12 @@ namespace backend.Controllers
             {
                 return error;
             }
-            var user = await _mainService.AddUser(request.Email, request.Username, request.Password, request.ProfilePicture);
+            (bool success, string msg, UserDTO? user) = await _mainService.AddUser(request.Email, request.Username, request.Password, request.ProfilePicture);
+
+            if (!success) 
+            {
+                return BadRequest(msg);
+            }
 
             var tokenData = await _tokenService.GenerateToken(user.Id);
 
@@ -134,5 +141,50 @@ namespace backend.Controllers
             }
         }
 
+        [Authorize(Policy = "CanUseServers")]
+        [HttpPost("server-invites/{inviteId}/accept-invite")]
+        public async Task<ActionResult> AcceptInvite(Guid serverId, Guid inviteId)
+        {
+            Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            (bool success, string msg) = await _serverService.AcceptInvite(callerId, inviteId);
+
+            if (success)
+            {
+                return Ok(msg);
+            }
+            return BadRequest(msg);
+        }
+
+        [Authorize(Policy = "CanUseServers")]
+        [HttpPost("server-invites/{inviteId}/reject-invite")]
+        public async Task<ActionResult> RejectInvite(Guid serverId, Guid inviteId)
+        {
+            Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            (bool success, string msg) = await _serverService.RejectInvite(callerId, inviteId);
+
+            if (success)
+            {
+                return StatusCode(204, msg);
+            }
+            return BadRequest(msg);
+        }
+
+        [Authorize(Policy = "CanUseServers")]
+        [HttpGet("server-invites")]
+        public async Task<ActionResult<ReceivedServerInvitePaginatedDTO?>> ListServerInvites([FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
+        {
+            Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            pageSize = Math.Clamp(pageSize, 1, 50);
+            currentPage = Math.Clamp(currentPage, 1, int.MaxValue);
+
+            (bool success, string msg, ReceivedServerInvitePaginatedDTO? invites) = await _serverService.ListReceivedInvites(callerId, currentPage, pageSize);
+
+            if (success)
+            {
+                return Ok(invites);
+            }
+            return BadRequest(msg);
+        }
     }
 }

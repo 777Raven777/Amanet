@@ -11,6 +11,7 @@ namespace backend.Models
         public User Participant { get; set; }
 
         public Role Role { get; set; }
+        public Guid RoleId { get; set; }
         public string CustomName { get; set; }
     }
 }
