@@ -130,7 +130,7 @@ public class ChatHub : Hub
     {
         var userId = Context.GetUserId();
 
-        var (success, responseText) = await _messages.EditMessage(userId, messageId, newText, true);
+        var (success, responseText) = await _messages.EditPrivateMessage(userId, messageId, newText);
 
         if (!success)
         {
@@ -152,7 +152,7 @@ public class ChatHub : Hub
     {
         var userId = Context.GetUserId();
 
-        var (success, responseText) = await _messages.DeleteMessage(userId, messageId, true);
+        var (success, responseText) = await _messages.DeletePrivateMessage(userId, messageId);
 
         if (!success)
         {
@@ -211,7 +211,7 @@ public class ChatHub : Hub
     {
         var userId = Context.GetUserId();
 
-        var request = new SendChannelMessageDTO
+        var request = new MessageDTO
         {
             ChannelId = channelId,
             Message = text,
