@@ -16,6 +16,8 @@ namespace backend.Models.DTO
     public class LoginRegisterResponse : UserDTO
     {
         public string Token { get; set; }
+        public string? SuspensionReason { get; set; }
+        public DateTime? SuspendedUntil { get; set; }
     }
 
     public class RegisterRequest {

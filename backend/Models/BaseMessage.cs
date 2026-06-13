@@ -9,6 +9,5 @@ namespace backend.Models
         [Required]
         public string Text { get; set; }
         public bool Edited { get; set; } = false;
-
     }
 }

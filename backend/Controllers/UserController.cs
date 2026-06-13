@@ -60,19 +60,22 @@ namespace backend.Controllers
 
             var tokenData = await _tokenService.GenerateToken(user.Id);
 
+            var suspended = tokenData as SuspendedTokenDTO;
             var response = new LoginRegisterResponse
             {
                 Id = user.Id,
                 Username = user.Username,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Token = tokenData.TokenValue
+                Token = tokenData.TokenValue,
+                SuspensionReason = suspended?.SuspensionReason,
+                SuspendedUntil = suspended?.SuspensionEndsAt,
             };
 
             return Ok(response);
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<UserDTO>> Login(Models.DTO.LoginRequest request)
+        public async Task<ActionResult<UserDTO>> Login(LoginRequest request)
         {
             UserDTO user = await _mainService.LoginUser(request);
 
@@ -82,12 +85,16 @@ namespace backend.Controllers
             }
 
             var tokenData = await _tokenService.GenerateToken(user.Id);
+
+            var suspended = tokenData as SuspendedTokenDTO;
             var response = new LoginRegisterResponse
             {
                 Id = user.Id,
                 Username = user.Username,
                 ProfilePictureUrl = user.ProfilePictureUrl,
-                Token = tokenData.TokenValue
+                Token = tokenData.TokenValue,
+                SuspensionReason = suspended?.SuspensionReason,
+                SuspendedUntil = suspended?.SuspensionEndsAt,
             };
 
             return Ok(response);
@@ -185,6 +192,21 @@ namespace backend.Controllers
                 return Ok(invites);
             }
             return BadRequest(msg);
+        }
+
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<ActionResult> Logout()
+        {
+            Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            bool success = await _tokenService.Logout(callerId);
+            
+            if (success)
+            {
+                return StatusCode(204);
+            }
+            return BadRequest();
         }
     }
 }

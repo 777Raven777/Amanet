@@ -1,18 +1,20 @@
-﻿using backend.Data;
+﻿using backend.Cache;
+using backend.Data;
 using backend.Extensions;
 using backend.Models;
 using backend.Models.DTO;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Channels;
 namespace backend.Services;
 
 public class RoleService
 {
     private readonly AppDbContext _context;
+    private readonly ICacheService _cache;
 
-    public RoleService(AppDbContext context)
+    public RoleService(AppDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<(bool Success, string Message, RoleDTO? Role)> CreateRole(Guid callerId, Guid serverId, CreateOrPatchRoleDTO request)
@@ -47,6 +49,7 @@ public class RoleService
         _context.Roles.Add(role);
         await _context.SaveChangesAsync();
 
+        await _cache.RemoveAsync(CacheKeys.Roles(serverId));
         return (true, "Role was successfully created", new RoleDTO
         {
             Name = request.Name,
@@ -91,6 +94,7 @@ public class RoleService
 
         await _context.SaveChangesAsync();
 
+        await _cache.RemoveAsync(CacheKeys.Roles(serverId));
         return (true, "Role was successfully deleted and users were reassigned to the default role.");
     }
 
@@ -122,6 +126,7 @@ public class RoleService
         if (updated)
         {
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(CacheKeys.Roles(serverId));
         }
 
         return (true, "Role was successfully patched", new RoleDTO
@@ -142,6 +147,12 @@ public class RoleService
             return (false, "No server with this Id exists", null);
         }
 
+        var cachedRoles = await _cache.GetAsync<IEnumerable<RoleDTO>>(CacheKeys.Roles(serverId));
+        if (cachedRoles != null) 
+        {
+            return (true, "List of roles retrieved", cachedRoles);
+        }
+
         List<RoleDTO> roles = await _context.Roles.Where(r => r.ServerId == serverId)
             .Select(r => new RoleDTO
             {
@@ -151,6 +162,7 @@ public class RoleService
             })
             .ToListAsync();
 
+        await _cache.SetAsync(CacheKeys.Roles(serverId), roles, TimeSpan.FromHours(1));
         return (true, "List of roles retrieved", roles);
     }
 

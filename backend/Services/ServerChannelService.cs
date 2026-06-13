@@ -1,4 +1,5 @@
-﻿using backend.Data;
+﻿using backend.Cache;
+using backend.Data;
 using backend.Extensions;
 using backend.Models;
 using backend.Models.DTO;
@@ -9,10 +10,12 @@ namespace backend.Services;
 public class ServerChannelService
 {
     private readonly AppDbContext _context;
+    private readonly ICacheService _cache;
 
-    public ServerChannelService(AppDbContext context)
+    public ServerChannelService(AppDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<(bool Success, string Message, ServerChannelDTO? ServerChannel)> CreateServerChannel(Guid callerId, Guid serverId, CreateOrPatchChannelDTO request)
@@ -56,6 +59,7 @@ public class ServerChannelService
 
             await transaction.CommitAsync();
 
+            await _cache.RemoveAsync(CacheKeys.ServerChannels(serverId));
             return (true, "Channel was successfully created", new ServerChannelDTO
             {
                 Name = channel.Name,
@@ -105,6 +109,7 @@ public class ServerChannelService
         if (isUpdated)
         {
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(CacheKeys.ServerChannels(serverId));
         }
 
         return (true, "Channel was successfully updated", new ServerChannelDTO
@@ -130,6 +135,7 @@ public class ServerChannelService
 
         if (rows > 0)
         {
+            await _cache.RemoveAsync(CacheKeys.ServerChannels(serverId));
             return (true, "Channel was successfully deleted");
         }
         return (false, "No channel with this Id found");
@@ -144,6 +150,12 @@ public class ServerChannelService
             return (false, msg, null);
         }
 
+        var cachedChannels = await _cache.GetAsync<IEnumerable<ServerChannelDTO>>(CacheKeys.ServerChannels(serverId));
+        if (cachedChannels != null) 
+        {
+            return (true, "List of channels retrieved", cachedChannels);
+        }
+
         List<ServerChannelDTO> channels = await _context.ServerChannels.Where(c => c.ServerId == serverId)
             .Select(c => new ServerChannelDTO
             {
@@ -152,6 +164,7 @@ public class ServerChannelService
             })
             .ToListAsync();
 
+        await _cache.SetAsync(CacheKeys.ServerChannels(serverId), channels, TimeSpan.FromHours(1));
         return (true, "List of channels retrieved", channels);
     }
 }
