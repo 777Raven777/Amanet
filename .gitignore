@@ -366,3 +366,4 @@ FodyWeavers.xsd
 
 .claude/
 /backend/wwwroot/index.html
+/backend/.env
