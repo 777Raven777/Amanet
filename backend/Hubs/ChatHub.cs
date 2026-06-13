@@ -207,17 +207,16 @@ public class ChatHub : Hub
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeGroups.Channel(channelId));
     }
 
-    public async Task SendChannelMessage(Guid channelId, string text)
+    public async Task SendChannelMessage(Guid channelId, Guid serverId, string text)
     {
         var userId = Context.GetUserId();
 
-        var request = new MessageDTO
+        var request = new CreateOrPatchMessageDTO
         {
-            ChannelId = channelId,
             Message = text,
         };
 
-        var (success, responseText, message) = await _messages.SendChannelMessage(userId, request);
+        var (success, responseText, message) = await _messages.SendChannelMessage(userId, serverId ,channelId, request);
 
         if (!success)
         {
@@ -229,11 +228,11 @@ public class ChatHub : Hub
             .SendAsync(RealtimeEvents.ReceiveChannelMessage, message);
     }
 
-    public async Task EditChannelMessage(Guid channelId, Guid messageId, string newText)
+    public async Task EditChannelMessage(Guid channelId, Guid messageId, Guid serverId, string newText)
     {
         var userId = Context.GetUserId();
 
-        var (success, responseText) = await _messages.EditMessage(userId, messageId, newText, false);
+        var (success, responseText) = await _messages.EditChannelMessage(userId, messageId, serverId, newText);
 
         if (!success)
         {
@@ -251,11 +250,11 @@ public class ChatHub : Hub
             });
     }
 
-    public async Task DeleteChannelMessage(Guid channelId, Guid messageId)
+    public async Task DeleteChannelMessage(Guid channelId, Guid messageId, Guid serverId)
     {
         var userId = Context.GetUserId();
 
-        var (success, responseText) = await _messages.DeleteMessage(userId, messageId, false);
+        var (success, responseText) = await _messages.DeleteChannelMessage(userId, messageId, serverId);
 
         if (!success)
         {

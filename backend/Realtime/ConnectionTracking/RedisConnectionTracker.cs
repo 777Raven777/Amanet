@@ -37,7 +37,7 @@ public class RedisConnectionTracker : IConnectionTracker
         if (userIdValue.IsNullOrEmpty)
             return;
 
-        if (!Guid.TryParse(userIdValue, out Guid userId))
+        if (!Guid.TryParse((string?)userIdValue, out Guid userId))
         {
             await _db.KeyDeleteAsync(IdKey(connectionId));
             return;

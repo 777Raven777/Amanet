@@ -30,7 +30,7 @@ public class RedisCacheService : ICacheService
         if (jsonData.IsNullOrEmpty)
             return default;
 
-        return JsonSerializer.Deserialize<T>(jsonData!);
+        return JsonSerializer.Deserialize<T>((string)jsonData!);
     }
 
     public async Task RemoveAsync(string key)

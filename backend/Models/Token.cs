@@ -1,8 +1,11 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace backend.Models;
+
+[Index(nameof(TokenValue), IsUnique = true)]
 public class Token : BaseEntity
 {
     [Required]
