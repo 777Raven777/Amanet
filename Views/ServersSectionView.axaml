@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.ServersSectionView"
+             x:DataType="vm:ServersSectionViewModel">
+
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="440">
+        <!-- the jug from the shelf, waiting for the party to start -->
+        <Image Source="{StaticResource IconServers}" Height="88" Opacity="0.45"
+               HorizontalAlignment="Center"/>
+        <TextBlock Text="The pavilions are under construction."
+                   FontSize="16" Foreground="{StaticResource ParchmentBrush}"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Classes="empty"
+                   Text="Servers, channels and roles arrive in the next chapter. The carpenters were paid in ox bezoars, so progress is… motivated."
+                   TextAlignment="Center"/>
+        <Rectangle Height="1" Width="180" Fill="#44CBA75A" HorizontalAlignment="Center"/>
+        <TextBlock Text="殿 — incoming: pavilions, channels &amp; the politics of roles"
+                   FontSize="10" Foreground="{StaticResource BrassBrush}" Opacity="0.5"
+                   HorizontalAlignment="Center"/>
+    </StackPanel>
+</UserControl>

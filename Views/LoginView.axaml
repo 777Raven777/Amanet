@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+
+    <Border MaxWidth="380" Padding="36"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            CornerRadius="14" Background="#CC2B1A17"
+            BorderBrush="{StaticResource BrassBrush}" BorderThickness="1"
+            BoxShadow="0 12 40 0 #66000000">
+        <StackPanel Spacing="18">
+            <StackPanel Spacing="4">
+                <TextBlock Text="猫猫" FontSize="13" Foreground="{StaticResource BrassBrush}"
+                           HorizontalAlignment="Center" Opacity="0.8"/>
+                <TextBlock Text="Welcome back" FontSize="26" FontWeight="SemiBold"
+                           Foreground="{StaticResource ParchmentBrush}" HorizontalAlignment="Center"/>
+                <Rectangle Height="1" Width="48" Fill="{StaticResource BrassBrush}"
+                           HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <TextBox Watermark="Email or username"
+                     Text="{Binding EmailOrUsername}" IsEnabled="{Binding !IsBusy}"/>
+            <TextBox Watermark="Password" PasswordChar="•"
+                     Text="{Binding Password}" IsEnabled="{Binding !IsBusy}"/>
+
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="#E8836B"
+                       TextWrapping="Wrap" FontSize="13"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+            <Button Classes="primary" Content="Log in"
+                    Command="{Binding LoginCommand}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
+                         Foreground="{StaticResource BrassBrush}" Height="2"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                <TextBlock Text="No account yet?" Foreground="{StaticResource ParchmentBrush}"
+                           Opacity="0.8" VerticalAlignment="Center"/>
+                <Button Classes="link" Content="Create one" Command="{Binding GoToRegisterCommand}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

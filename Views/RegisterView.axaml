@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.RegisterView"
+             x:DataType="vm:RegisterViewModel">
+
+    <Border MaxWidth="380" Padding="36"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            CornerRadius="14" Background="#CC2B1A17"
+            BorderBrush="{StaticResource BrassBrush}" BorderThickness="1"
+            BoxShadow="0 12 40 0 #66000000">
+        <StackPanel Spacing="14">
+            <StackPanel Spacing="4">
+                <TextBlock Text="猫猫" FontSize="13" Foreground="{StaticResource BrassBrush}"
+                           HorizontalAlignment="Center" Opacity="0.8"/>
+                <TextBlock Text="Create account" FontSize="26" FontWeight="SemiBold"
+                           Foreground="{StaticResource ParchmentBrush}" HorizontalAlignment="Center"/>
+                <Rectangle Height="1" Width="48" Fill="{StaticResource BrassBrush}"
+                           HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <!-- Portrait picker -->
+            <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center"
+                        ToolTip.Tip="Optional. But even Jinshi's beauty can't save a blank portrait.">
+                <Panel Width="64" Height="64">
+                    <Border Width="64" Height="64" CornerRadius="32"
+                            Background="#33CBA75A" BorderBrush="{StaticResource BrassBrush}"
+                            BorderThickness="1" ClipToBounds="True">
+                        <Panel>
+                            <TextBlock Text="?" FontSize="24" Foreground="{StaticResource BrassBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding AvatarPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
+                            <Image Source="{Binding AvatarPreview}" Stretch="UniformToFill"
+                                   IsVisible="{Binding AvatarPreview, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        </Panel>
+                    </Border>
+                </Panel>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <Button Classes="link" Content="Choose portrait"
+                            Command="{Binding PickAvatarCommand}" IsEnabled="{Binding !IsBusy}"/>
+                    <Button Classes="link" Content="Remove"
+                            Command="{Binding ClearAvatarCommand}"
+                            IsVisible="{Binding HasAvatar}" IsEnabled="{Binding !IsBusy}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <TextBox Watermark="Email" Text="{Binding Email}" IsEnabled="{Binding !IsBusy}"/>
+            <TextBox Watermark="Username" Text="{Binding Username}" IsEnabled="{Binding !IsBusy}"/>
+            <TextBox Watermark="Password (min. 8 characters)" PasswordChar="•"
+                     Text="{Binding Password}" IsEnabled="{Binding !IsBusy}"/>
+            <TextBox Watermark="Confirm password" PasswordChar="•"
+                     Text="{Binding ConfirmPassword}" IsEnabled="{Binding !IsBusy}"/>
+
+            <!-- Why-is-the-button-grey explainer -->
+            <TextBlock Text="{Binding PasswordHint}" Foreground="#E8B36B"
+                       TextWrapping="Wrap" FontSize="12"
+                       IsVisible="{Binding PasswordHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="#E8836B"
+                       TextWrapping="Wrap" FontSize="13"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+            <Button Classes="primary" Content="Register"
+                    Command="{Binding RegisterCommand}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
+                         Foreground="{StaticResource BrassBrush}" Height="2"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                <TextBlock Text="Already have an account?" Foreground="{StaticResource ParchmentBrush}"
+                           Opacity="0.8" VerticalAlignment="Center"/>
+                <Button Classes="link" Content="Sign in" Command="{Binding GoToLoginCommand}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.ConversationsSectionView"
+             x:DataType="vm:ConversationsSectionViewModel">
+
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="440">
+        <!-- an unopened letter waiting on the desk -->
+        <Image Source="{StaticResource IconLetterSealed}" Height="84" Opacity="0.5"
+               HorizontalAlignment="Center"/>
+        <TextBlock Text="No letters yet."
+                   FontSize="16" Foreground="{StaticResource ParchmentBrush}"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Classes="empty"
+                   Text="Private correspondence opens soon. All messages will be read-tested for poison first — by someone who volunteers a bit too eagerly."
+                   TextAlignment="Center"/>
+        <!-- a thin brass rule, like the edge of a writing desk -->
+        <Rectangle Height="1" Width="180" Fill="#44CBA75A" HorizontalAlignment="Center"/>
+        <TextBlock Text="文 — incoming: cursor pagination &amp; live delivery"
+                   FontSize="10" Foreground="{StaticResource BrassBrush}" Opacity="0.5"
+                   HorizontalAlignment="Center"/>
+    </StackPanel>
+</UserControl>

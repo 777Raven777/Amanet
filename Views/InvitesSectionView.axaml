@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.InvitesSectionView"
+             x:Name="Root"
+             x:DataType="vm:InvitesSectionViewModel">
+
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}"
+                   FontSize="12" FontStyle="Italic" Margin="0,8,0,0"
+                   Foreground="{StaticResource BrassBrush}"
+                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <Panel>
+            <!-- empty tray: the flask from the shelf, faded, waiting -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"
+                        IsVisible="{Binding !HasInvites}">
+                <Image Source="{StaticResource IconInvites}" Height="76" Opacity="0.38"
+                       HorizontalAlignment="Center"/>
+                <TextBlock Classes="empty" Text="The Rear Palace sends no summons today. Enjoy the silence — it rarely lasts."/>
+            </StackPanel>
+
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding ReceivedInvites}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ServerInviteItem">
+                            <Border Classes="card" Margin="0,0,0,8">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                Spacing="6" VerticalAlignment="Center">
+                                        <Button Classes="primary small" Content="Accept"
+                                                ToolTip.Tip="You'll be seated with the 'default' role. Know your place. For now."
+                                                Command="{Binding #Root.((vm:InvitesSectionViewModel)DataContext).AcceptCommand}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Classes="ghost danger" Content="Decline"
+                                                ToolTip.Tip="Return to sender, seal unbroken."
+                                                Command="{Binding #Root.((vm:InvitesSectionViewModel)DataContext).RejectCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                        <!-- each invite is a sealed letter; the seal stays
+                                             intact until you decide -->
+                                        <Image Source="{StaticResource IconLetterSealed}" Width="34" Height="34"
+                                               VerticalAlignment="Center"/>
+                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding ServerName}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource ParchmentBrush}"/>
+                                            <TextBlock Text="requests your presence" FontSize="11"
+                                                       Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Panel>
+    </DockPanel>
+</UserControl>

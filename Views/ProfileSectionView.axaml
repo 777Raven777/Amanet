@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.ProfileSectionView"
+             x:DataType="vm:ProfileSectionViewModel">
+
+    <ScrollViewer>
+        <Panel MaxWidth="460" HorizontalAlignment="Left">
+            <Border Classes="card" Padding="24">
+                <StackPanel Spacing="14">
+
+                <!-- portrait -->
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Border Width="72" Height="72" CornerRadius="36"
+                            Background="#33CBA75A" BorderBrush="{StaticResource BrassBrush}"
+                            BorderThickness="1" ClipToBounds="True"
+                            ToolTip.Tip="A face the palace records will remember.">
+                        <Panel>
+                            <TextBlock Text="薬" FontSize="26" Foreground="{StaticResource BrassBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding AvatarPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
+                            <Image Source="{Binding AvatarPreview}" Stretch="UniformToFill"
+                                   IsVisible="{Binding AvatarPreview, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        </Panel>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <Button Classes="link" Content="Change portrait" Command="{Binding PickAvatarCommand}"
+                                IsEnabled="{Binding !IsBusy}"/>
+                        <Button Classes="link" Content="Discard new portrait" Command="{Binding ClearAvatarCommand}"
+                                IsVisible="{Binding HasAvatarChange}" IsEnabled="{Binding !IsBusy}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Rectangle Height="1" Fill="#33CBA75A"/>
+
+                <TextBox Watermark="Username" Text="{Binding Username}" IsEnabled="{Binding !IsBusy}"/>
+                <TextBox Watermark="Email" Text="{Binding Email}" IsEnabled="{Binding !IsBusy}"/>
+
+                <Rectangle Height="1" Fill="#33CBA75A"/>
+
+                <TextBlock Text="Change password" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource BrassBrush}"/>
+                <TextBox Watermark="Old password" PasswordChar="•"
+                         Text="{Binding OldPassword}" IsEnabled="{Binding !IsBusy}"/>
+                <TextBox Watermark="New password (min. 8 characters)" PasswordChar="•"
+                         Text="{Binding NewPassword}" IsEnabled="{Binding !IsBusy}"/>
+
+                <TextBlock Text="{Binding PasswordHint}" Foreground="#E8B36B"
+                           TextWrapping="Wrap" FontSize="12"
+                           IsVisible="{Binding PasswordHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <Button Classes="primary" Content="Save changes"
+                        Command="{Binding SaveCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+
+                <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
+                             Foreground="{StaticResource BrassBrush}" Height="2"/>
+
+                <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontStyle="Italic"
+                           Foreground="{StaticResource BrassBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- the palace has reviewed your file and stamped it. You were
+                 not consulted. -->
+            <Image Source="{StaticResource IconSeal}" Width="46" Height="46"
+                   HorizontalAlignment="Right" VerticalAlignment="Top"
+                   Margin="0,14,16,0" Opacity="0.75"
+                   RenderTransform="rotate(-8deg)"
+                   ToolTip.Tip="Inspected. Filed. Mildly judged."/>
+        </Panel>
+    </ScrollViewer>
+</UserControl>

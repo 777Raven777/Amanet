@@ -1,0 +1,231 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.Resources>
+
+        <!-- The jar icons (IconServers, IconConversations, IconFriends,
+             IconInvites, IconProfile) live in App.axaml now — the section
+             views use them too, and a shared theme asset belongs at app
+             scope, not hostage to whichever view defined it first. -->
+
+        <!-- ====================================================== -->
+        <!--  ShelfSlot: each nav item is a bottle standing on a    -->
+        <!--  wooden plank. Hover lifts the bottle off the shelf;   -->
+        <!--  selecting it lights a warm glow behind the glass.     -->
+        <!-- ====================================================== -->
+        <ControlTheme x:Key="ShelfSlot" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="12,6,12,2"/>
+            <Setter Property="Padding" Value="6,4,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <DockPanel>
+                        <!-- the plank -->
+                        <Border Name="Plank" DockPanel.Dock="Bottom"
+                                Height="7" CornerRadius="1"
+                                BoxShadow="0 3 5 0 #66000000">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                    <GradientStop Offset="0"   Color="#7A5230"/>
+                                    <GradientStop Offset="0.2" Color="#6E4A2E"/>
+                                    <GradientStop Offset="1"   Color="#46291A"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Rectangle Height="1" VerticalAlignment="Top" Fill="#40F2E8D5"/>
+                        </Border>
+
+                        <Panel>
+                            <!-- candle-glow behind the selected bottle -->
+                            <Border Name="Glow" Width="72" Height="60"
+                                    HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                    Margin="-8,0,0,-6" Opacity="0" IsHitTestVisible="False">
+                                <Border.Background>
+                                    <RadialGradientBrush>
+                                        <GradientStop Offset="0" Color="#66E8B36B"/>
+                                        <GradientStop Offset="1" Color="#00E8B36B"/>
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                                <Border.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                                    </Transitions>
+                                </Border.Transitions>
+                            </Border>
+
+                            <ContentPresenter Name="PART_ContentPresenter"
+                                              Padding="{TemplateBinding Padding}"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              VerticalContentAlignment="Bottom"
+                                              RenderTransform="translateY(0px)">
+                                <ContentPresenter.Transitions>
+                                    <Transitions>
+                                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                                    </Transitions>
+                                </ContentPresenter.Transitions>
+                            </ContentPresenter>
+                        </Panel>
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter>
+            <!-- pick the bottle up to inspect it -->
+            <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="RenderTransform" Value="translateY(-3px)"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#Glow">
+                <Setter Property="Opacity" Value="1"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#Plank">
+                <Setter Property="BoxShadow" Value="0 3 7 0 #88000000"/>
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <Border Background="#8C170D0B">
+        <Grid ColumnDefinitions="240,*">
+
+            <!-- ============ left rail: the apothecary's shelf ============ -->
+            <Border Grid.Column="0"
+                    BorderBrush="#553A22" BorderThickness="0,0,2,0">
+                <!-- Painted-wood fallback. For the real thing, drop a seamless
+                     dark wood texture at  Assets/wood.jpg  (next to tlo.jpg,
+                     vertical grain looks best) and swap this gradient for:
+
+                     <Border.Background>
+                         <ImageBrush Source="avares://AvaloniaApplication1/Assets/wood.jpg"
+                                     Stretch="UniformToFill" Opacity="0.9"/>
+                     </Border.Background>
+                -->
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,30%">
+                        <GradientStop Offset="0"    Color="#3B2516"/>
+                        <GradientStop Offset="0.45" Color="#2C1A10"/>
+                        <GradientStop Offset="0.7"  Color="#33200F"/>
+                        <GradientStop Offset="1"    Color="#271710"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+
+                <Panel>
+                    <!-- dark varnish so parchment text stays readable on any texture -->
+                    <Border Background="#59150C08" IsHitTestVisible="False"/>
+
+                    <DockPanel>
+                        <!-- brand: the sign above the shop -->
+                        <StackPanel DockPanel.Dock="Top" Margin="20,22,20,6" Spacing="3">
+                            <TextBlock Text="Amanet" FontSize="22" FontWeight="SemiBold"
+                                       Foreground="{StaticResource ParchmentBrush}"/>
+                            <TextBlock Text="薬屋の書簡 — the apothecary's letters"
+                                       FontSize="11" Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                            <Rectangle Height="1" Fill="#44CBA75A" Margin="0,10,0,0"/>
+                        </StackPanel>
+
+                        <!-- current user + logout -->
+                        <Border DockPanel.Dock="Bottom" Margin="12,8,12,12" Padding="10"
+                                CornerRadius="10" Background="#40150C08"
+                                BorderBrush="#33CBA75A" BorderThickness="1"
+                                ToolTip.Tip="Taste-tested for poison. Probably.">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Classes="link" Content="⏻"
+                                        FontSize="16" VerticalAlignment="Center"
+                                        Command="{Binding LogoutCommand}"
+                                        ToolTip.Tip="Leave the palace (log out)"/>
+                                <Border Width="34" Height="34" CornerRadius="17" Margin="0,0,10,0"
+                                        Background="#33C8342E" BorderBrush="{StaticResource BrassBrush}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="薬" FontSize="15" Foreground="{StaticResource ParchmentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding CurrentUsername}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource ParchmentBrush}"/>
+                                    <TextBlock Text="{Binding CurrentRank}" FontSize="10"
+                                               Foreground="{StaticResource BrassBrush}" Opacity="0.85"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- the shelf itself -->
+                        <ListBox ItemsSource="{Binding Sections}"
+                                 SelectedItem="{Binding SelectedSection}"
+                                 Background="Transparent"
+                                 ItemContainerTheme="{StaticResource ShelfSlot}"
+                                 Margin="0,8,0,0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SectionItem">
+                                    <DockPanel Margin="2,0">
+                                        <!-- which jar this is = decided by the section's
+                                             ViewModel type, same trick as the ViewLocator -->
+                                        <ContentControl DockPanel.Dock="Left"
+                                                        Content="{Binding Content}"
+                                                        Width="36" Height="48"
+                                                        Margin="2,0,12,0"
+                                                        VerticalAlignment="Bottom">
+                                            <ContentControl.DataTemplates>
+                                                <DataTemplate DataType="vm:ServersSectionViewModel">
+                                                    <Image Source="{StaticResource IconServers}" Stretch="Uniform"/>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="vm:ConversationsSectionViewModel">
+                                                    <Image Source="{StaticResource IconConversations}" Stretch="Uniform"/>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="vm:FriendsSectionViewModel">
+                                                    <Image Source="{StaticResource IconFriends}" Stretch="Uniform"/>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="vm:InvitesSectionViewModel">
+                                                    <Image Source="{StaticResource IconInvites}" Stretch="Uniform"/>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="vm:ProfileSectionViewModel">
+                                                    <Image Source="{StaticResource IconProfile}" Stretch="Uniform"/>
+                                                </DataTemplate>
+                                            </ContentControl.DataTemplates>
+                                        </ContentControl>
+
+                                        <StackPanel VerticalAlignment="Center" Spacing="4" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Title}" FontSize="14"
+                                                       Foreground="{StaticResource ParchmentBrush}"/>
+                                            <!-- the little paper label tied to the jar -->
+                                            <Border Background="#E8D9BC" CornerRadius="2"
+                                                    Padding="5,1" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Glyph}" FontSize="9"
+                                                           Foreground="#5A3A28"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Panel>
+            </Border>
+
+            <!-- ============ right pane: the open scroll ============ -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" Margin="30,24,30,12">
+
+                <!-- section header -->
+                <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
+                    <TextBlock Text="{Binding SelectedSection.Title}" FontSize="26" FontWeight="SemiBold"
+                               Foreground="{StaticResource ParchmentBrush}"/>
+                    <TextBlock Text="{Binding SelectedSection.Subtitle}" FontSize="13"
+                               Foreground="{StaticResource BrassBrush}" Opacity="0.85"/>
+                    <Rectangle Height="1" Fill="#44CBA75A" Margin="0,8,0,0"/>
+                </StackPanel>
+
+                <!-- section content, cross-fades on jar change -->
+                <TransitioningContentControl Grid.Row="1"
+                                             Content="{Binding SelectedSection.Content}">
+                    <TransitioningContentControl.PageTransition>
+                        <CrossFade Duration="0:0:0.22"/>
+                    </TransitioningContentControl.PageTransition>
+                </TransitioningContentControl>
+
+                <!-- omen of the day -->
+                <TextBlock Grid.Row="2" Text="{Binding Omen}"
+                           FontSize="11" FontStyle="Italic"
+                           Foreground="{StaticResource ParchmentBrush}" Opacity="0.45"
+                           HorizontalAlignment="Center" Margin="0,10,0,2"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

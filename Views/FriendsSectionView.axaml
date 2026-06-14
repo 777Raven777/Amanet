@@ -1,0 +1,187 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.FriendsSectionView"
+             x:Name="Root"
+             x:DataType="vm:FriendsSectionViewModel">
+
+    <DockPanel>
+
+        <!-- search a user to befriend -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <TextBox Grid.Column="0" Watermark="Find someone in the palace registry..."
+                     Text="{Binding SearchQuery}"/>
+            <Button Grid.Column="1" Classes="ghost" Content="Search" Margin="10,0,0,0"
+                    VerticalAlignment="Stretch"
+                    Command="{Binding SearchUsersCommand}"/>
+        </Grid>
+
+        <!-- status line -->
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}"
+                   FontSize="12" FontStyle="Italic" Margin="0,8,0,0"
+                   Foreground="{StaticResource BrassBrush}"
+                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <TabControl Padding="0,10,0,0">
+
+            <!-- ===================== friends ===================== -->
+            <TabItem Header="Allies">
+                <Panel>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"
+                                IsVisible="{Binding !Friends.Count}">
+                        <!-- an empty dish where the bezoar should be -->
+                        <Image Source="{StaticResource IconFriends}" Height="72" Opacity="0.38"
+                               HorizontalAlignment="Center"/>
+                        <TextBlock Classes="empty"
+                                   Text="No allies yet. Maomao would call this 'optimal lab conditions'."/>
+                    </StackPanel>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Friends}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FriendItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <DockPanel>
+                                            <Border Width="38" Height="38" CornerRadius="19" Margin="0,0,12,0"
+                                                    Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource ParchmentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                        Spacing="6" VerticalAlignment="Center">
+                                                <Button Classes="ghost" Content="Message"
+                                                        ToolTip.Tip="Opens once Conversations exist. Patience, like fermentation."
+                                                        IsEnabled="False"/>
+                                                <Button Classes="ghost danger" Content="Remove"
+                                                        ToolTip.Tip="Severs the alliance. No antidote for this one."
+                                                        Command="{Binding #Root.((vm:FriendsSectionViewModel)DataContext).RemoveFriendCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource ParchmentBrush}"/>
+                                                <TextBlock Text="{Binding SinceText}" FontSize="11"
+                                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </TabItem>
+
+            <!-- ===================== received ===================== -->
+            <TabItem Header="Received">
+                <Panel>
+                    <TextBlock Classes="empty"
+                               Text="Nobody seeks your friendship today. Suspiciously quiet."
+                               IsVisible="{Binding !ReceivedRequests.Count}"/>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding ReceivedRequests}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FriendRequestItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <DockPanel>
+                                            <Border Width="38" Height="38" CornerRadius="19" Margin="0,0,12,0"
+                                                    Background="#33C8342E" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource ParchmentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                        Spacing="6" VerticalAlignment="Center">
+                                                <Button Classes="primary small" Content="Accept"
+                                                        Command="{Binding #Root.((vm:FriendsSectionViewModel)DataContext).AcceptCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost danger" Content="Reject"
+                                                        Command="{Binding #Root.((vm:FriendsSectionViewModel)DataContext).RejectCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </TabItem>
+
+            <!-- ===================== sent ===================== -->
+            <TabItem Header="Sent">
+                <Panel>
+                    <TextBlock Classes="empty"
+                               Text="No pending letters. Either popular or very efficient."
+                               IsVisible="{Binding !SentRequests.Count}"/>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding SentRequests}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FriendRequestItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Classes="ghost danger" Content="Withdraw"
+                                                    VerticalAlignment="Center"
+                                                    Command="{Binding #Root.((vm:FriendsSectionViewModel)DataContext).CancelSentCommand}"
+                                                    CommandParameter="{Binding}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                <Border Width="38" Height="38" CornerRadius="19"
+                                                        Background="#26CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                    <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource ParchmentBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource ParchmentBrush}"/>
+                                                    <TextBlock Text="awaiting an answer…" FontSize="11"
+                                                               Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </TabItem>
+			<!-- ===================== search ===================== -->
+			<TabItem Header="Search">
+				<Panel>
+					<TextBlock Classes="empty"
+							   Text="Search the registry above to find someone to befriend."
+							   IsVisible="{Binding !SearchResults.Count}"/>
+					<ScrollViewer>
+						<ItemsControl ItemsSource="{Binding SearchResults}">
+							<ItemsControl.ItemTemplate>
+								<DataTemplate x:DataType="vm:UserSearchResult">
+									<Border Classes="card" Margin="0,0,0,8">
+										<DockPanel>
+											<Border Width="38" Height="38" CornerRadius="19" Margin="0,0,12,0"
+													Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+												<TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+														   Foreground="{StaticResource ParchmentBrush}"
+														   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+											</Border>
+											<Button DockPanel.Dock="Right" Classes="primary small" Content="Add"
+													VerticalAlignment="Center"
+													Command="{Binding #Root.((vm:FriendsSectionViewModel)DataContext).SendRequestCommand}"
+													CommandParameter="{Binding}"/>
+											<TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+													   Foreground="{StaticResource ParchmentBrush}"
+													   VerticalAlignment="Center"/>
+										</DockPanel>
+									</Border>
+								</DataTemplate>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+					</ScrollViewer>
+				</Panel>
+			</TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>

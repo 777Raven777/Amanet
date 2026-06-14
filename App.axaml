@@ -1,0 +1,296 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:AvaloniaApplication1"
+             x:Class="AvaloniaApplication1.App"
+             RequestedThemeVariant="Default">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <Color x:Key="Vermilion">#C8342E</Color>
+        <Color x:Key="VermilionDark">#9A241F</Color>
+        <Color x:Key="Brass">#CBA75A</Color>
+        <Color x:Key="Parchment">#F2E8D5</Color>
+
+        <SolidColorBrush x:Key="BrassBrush" Color="{StaticResource Brass}"/>
+        <SolidColorBrush x:Key="ParchmentBrush" Color="{StaticResource Parchment}"/>
+
+        <!-- Fluent overrides: brass selection pipe on tabs, parchment headers -->
+        <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="{StaticResource Brass}"/>
+        <SolidColorBrush x:Key="TabItemHeaderForegroundSelected" Color="{StaticResource Parchment}"/>
+        <SolidColorBrush x:Key="TabItemHeaderForegroundUnselected" Color="#99F2E8D5"/>
+        <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPointerOver" Color="{StaticResource Brass}"/>
+
+        <LinearGradientBrush x:Key="FallbackBg" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0" Color="#3A1614"/>
+            <GradientStop Offset="0.55" Color="#6B201B"/>
+            <GradientStop Offset="1" Color="#2B1A17"/>
+        </LinearGradientBrush>
+
+        <!-- ============================================================ -->
+        <!--  The apothecary's icon shelf. App-scoped on purpose: both    -->
+        <!--  MainView's rail and the section views use these, and a      -->
+        <!--  view should render standalone (previewer!) without          -->
+        <!--  depending on who happens to host it.                       -->
+        <!--  Each lives on a 48x64 canvas; the transparent rect pins    -->
+        <!--  the bounds so every jar shares the same scale.             -->
+        <!-- ============================================================ -->
+
+        <!-- Servers: a sake jug -->
+        <DrawingImage x:Key="IconServers">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V64 H0 Z"/>
+                <GeometryDrawing Brush="#8A6B3A" Geometry="M20.5,2 H27.5 A1.5,1.5 0 0 1 29,3.5 V6.5 A1.5,1.5 0 0 1 27.5,8 H20.5 A1.5,1.5 0 0 1 19,6.5 V3.5 A1.5,1.5 0 0 1 20.5,2 Z"/>
+                <GeometryDrawing Brush="#A8352B" Geometry="M21,8 H27 V16 C27,18 28,19 30,20 C36,23 40,29 40,38 C40,50 33,57 24,57 C15,57 8,50 8,38 C8,29 12,23 18,20 C20,19 21,18 21,16 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#5E1B16" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#CBA75A" Geometry="M18.5,14.5 H29.5 A1.5,1.5 0 0 1 31,16 V16.5 A1.5,1.5 0 0 1 29.5,18 H18.5 A1.5,1.5 0 0 1 17,16.5 V16 A1.5,1.5 0 0 1 18.5,14.5 Z"/>
+                <GeometryDrawing Brush="#2EF2E8D5" Geometry="M13.5,34 a3.5,8 0 1 0 7,0 a3.5,8 0 1 0 -7,0 Z"/>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- Conversations: two rolled letters tied with a vermilion ribbon -->
+        <DrawingImage x:Key="IconConversations">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V64 H0 Z"/>
+                <GeometryDrawing Brush="#E3D3AE" Geometry="M13.5,40 H36.5 A5.5,5.5 0 0 1 42,45.5 A5.5,5.5 0 0 1 36.5,51 H13.5 A5.5,5.5 0 0 1 8,45.5 A5.5,5.5 0 0 1 13.5,40 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#C9B68C" Geometry="M10.5,45.5 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 Z"/>
+                <GeometryDrawing Brush="#F2E8D5" Geometry="M11.5,26 H34.5 A5.5,5.5 0 0 1 40,31.5 A5.5,5.5 0 0 1 34.5,37 H11.5 A5.5,5.5 0 0 1 6,31.5 A5.5,5.5 0 0 1 11.5,26 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#D8C49A" Geometry="M8.5,31.5 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 Z"/>
+                <GeometryDrawing Brush="#C8342E" Geometry="M26,21 H30 V55 H26 Z"/>
+                <GeometryDrawing Brush="#A02A24" Geometry="M25,57 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 Z"/>
+                <GeometryDrawing Brush="#C8342E" Geometry="M32,31.5 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 Z"/>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- Friends: the ox bezoar (牛黄) on a lacquer dish -->
+        <DrawingImage x:Key="IconFriends">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V64 H0 Z"/>
+                <GeometryDrawing Brush="#3A241C" Geometry="M7,53 a17,5.5 0 1 0 34,0 a17,5.5 0 1 0 -34,0 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#CBA75A" Thickness="1.2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#CBA75A" Geometry="M11,39 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#99B8923F" Geometry="M21,42 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z"/>
+                <GeometryDrawing Brush="#99F2E8D5" Geometry="M15,33.5 a4,3 0 1 0 8,0 a4,3 0 1 0 -8,0 Z"/>
+                <GeometryDrawing Brush="#D9F2E8D5" Geometry="M38,18 L40,22 L38,26 L36,22 Z"/>
+                <GeometryDrawing Brush="#99F2E8D5" Geometry="M10,14 L11.4,17 L10,20 L8.6,17 Z"/>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- Invites: a flask of something green with a paper tag -->
+        <DrawingImage x:Key="IconInvites">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V64 H0 Z"/>
+                <GeometryDrawing Brush="#24F2E8D5" Geometry="M21,10 H27 V24 L37,50 C39,55 36,59 31,59 H17 C12,59 9,55 11,50 L21,24 Z"/>
+                <GeometryDrawing Brush="#6B7F4A" Geometry="M13.3,44 H34.7 L37,50 C39,55 36,59 31,59 H17 C12,59 9,55 11,50 Z"/>
+                <GeometryDrawing Brush="#8A9C63" Geometry="M13.3,44 a10.7,2 0 1 0 21.4,0 a10.7,2 0 1 0 -21.4,0 Z"/>
+                <GeometryDrawing Brush="#CCC9D6A8" Geometry="M18.5,52 a1.5,1.5 0 1 0 3,0 a1.5,1.5 0 1 0 -3,0 Z"/>
+                <GeometryDrawing Brush="#CCC9D6A8" Geometry="M26,49 a1,1 0 1 0 2,0 a1,1 0 1 0 -2,0 Z"/>
+                <GeometryDrawing Geometry="M21,10 H27 V24 L37,50 C39,55 36,59 31,59 H17 C12,59 9,55 11,50 L21,24 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#D8C49A" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#8A6B3A" Geometry="M21,5 H27 A1.5,1.5 0 0 1 28.5,6.5 V9.5 A1.5,1.5 0 0 1 27,11 H21 A1.5,1.5 0 0 1 19.5,9.5 V6.5 A1.5,1.5 0 0 1 21,5 Z"/>
+                <GeometryDrawing Geometry="M28,13 L33,16">
+                    <GeometryDrawing.Pen><Pen Brush="#D8C49A" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#F2E8D5" Geometry="M33,14 L43,17 L41,25 L31,22 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="0.8"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- Profile: the apothecary's own mortar and pestle -->
+        <DrawingImage x:Key="IconProfile">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V64 H0 Z"/>
+                <GeometryDrawing>
+                    <GeometryDrawing.Pen><Pen Brush="#C9B68C" Thickness="7" LineCap="Round"/></GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry><LineGeometry StartPoint="33,6" EndPoint="23,27"/></GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#80F2E8D5" Geometry="M17,21 a1,1 0 1 0 2,0 a1,1 0 1 0 -2,0 Z"/>
+                <GeometryDrawing Brush="#59F2E8D5" Geometry="M13.5,24.5 a0.8,0.8 0 1 0 1.6,0 a0.8,0.8 0 1 0 -1.6,0 Z"/>
+                <GeometryDrawing Brush="#6E5A47" Geometry="M9,30 H39 C39,44 33,52 24,52 C15,52 9,44 9,30 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#4A3A2C" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#7E6952" Geometry="M10,27 H38 A3,3 0 0 1 41,30 A3,3 0 0 1 38,33 H10 A3,3 0 0 1 7,30 A3,3 0 0 1 10,27 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#4A3A2C" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#5A4838" Geometry="M19.5,52 H28.5 A1.5,1.5 0 0 1 30,53.5 V55.5 A1.5,1.5 0 0 1 28.5,57 H19.5 A1.5,1.5 0 0 1 18,55.5 V53.5 A1.5,1.5 0 0 1 19.5,52 Z"/>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- A folded letter with a wax seal (48x48). One invitation, unopened. -->
+        <DrawingImage x:Key="IconLetterSealed">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V48 H0 Z"/>
+                <GeometryDrawing Brush="#F2E8D5" Geometry="M9,12 H39 A3,3 0 0 1 42,15 V35 A3,3 0 0 1 39,38 H9 A3,3 0 0 1 6,35 V15 A3,3 0 0 1 9,12 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="1.2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M7,13.5 L24,27 L41,13.5">
+                    <GeometryDrawing.Pen><Pen Brush="#8A6B3A" Thickness="1.2" LineJoin="Round"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#C8342E" Geometry="M19,30 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A2520" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#9A241F" Geometry="M21.5,30 a2.5,2.5 0 1 0 5,0 a2.5,2.5 0 1 0 -5,0 Z"/>
+            </DrawingGroup>
+        </DrawingImage>
+
+        <!-- A vermilion chop stamp (48x48). The palace has approved this file. -->
+        <DrawingImage x:Key="IconSeal">
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent" Geometry="M0,0 H48 V48 H0 Z"/>
+                <GeometryDrawing Brush="#C8342E" Geometry="M14,10 H34 A4,4 0 0 1 38,14 V34 A4,4 0 0 1 34,38 H14 A4,4 0 0 1 10,34 V14 A4,4 0 0 1 14,10 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#8A2520" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M16,14 H32 A2,2 0 0 1 34,16 V32 A2,2 0 0 1 32,34 H16 A2,2 0 0 1 14,32 V16 A2,2 0 0 1 16,14 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#E8D9BC" Thickness="1.2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M19,18 L19,30 M25,18 L31,18 M28,18 L28,30 M25,30 L31,30">
+                    <GeometryDrawing.Pen><Pen Brush="#E8D9BC" Thickness="1.8" LineCap="Round"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme/>
+
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#33000000"/>
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource BrassBrush}"/>
+            <Setter Property="BorderBrush" Value="#55CBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="{StaticResource BrassBrush}"/>
+        </Style>
+
+        <!-- primary: vermilion seal -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource Vermilion}"/>
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="0,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource VermilionDark}"/>
+        </Style>
+
+        <!-- primary.small: same seal, less wax -->
+        <Style Selector="Button.small">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="14,7"/>
+        </Style>
+
+        <!-- ghost: brass-outlined secondary action -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+            <Setter Property="BorderBrush" Value="#66CBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ghost /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26CBA75A"/>
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+        </Style>
+
+        <!-- ghost.danger: for actions with no antidote -->
+        <Style Selector="Button.danger">
+            <Setter Property="Foreground" Value="#E8836B"/>
+            <Setter Property="BorderBrush" Value="#66E8836B"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26C8342E"/>
+            <Setter Property="Foreground" Value="#F2A28E"/>
+        </Style>
+
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource BrassBrush}"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.link:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+        </Style>
+        <Style Selector="Button.link:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- card: a paper slip in the records -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#99231310"/>
+            <Setter Property="BorderBrush" Value="#2ECBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="RenderTransform" Value="translateY(0px)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.card:pointerover">
+            <Setter Property="Background" Value="#B32A1813"/>
+            <Setter Property="BorderBrush" Value="#55CBA75A"/>
+            <Setter Property="RenderTransform" Value="translateY(-1px)"/>
+        </Style>
+
+        <!-- empty-state copy -->
+        <Style Selector="TextBlock.empty">
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+            <Setter Property="Opacity" Value="0.55"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="24"/>
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="10,4"/>
+        </Style>
+    </Application.Styles>
+</Application>
