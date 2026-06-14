@@ -16,7 +16,7 @@
                 throw new ArgumentNullException(nameof(image));
             }
 
-            var currentPath = environment.WebRootPath;
+            var currentPath = environment.ContentRootPath;
             var path = Path.Combine(currentPath, "Uploads");
 
             if (!Directory.Exists(path))
@@ -36,7 +36,6 @@
             await image.CopyToAsync(stream);
             return fileName;
         }
-
 
         public void DeleteFile(string fileNameWithExtension)
         {

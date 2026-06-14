@@ -86,12 +86,13 @@ builder.Services.AddControllers()
 });
 
 builder.Services.AddSingleton<ICacheService, RedisCacheService>(); */
-var redisConnectionString = builder.Configuration["Redis:ConnectionString"]
-    ?? throw new InvalidOperationException(
-        "Redis:ConnectionString is not configured. Add it to user secrets or appsettings.");
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var conn = sp.GetRequiredService<IConfiguration>()["Redis:ConnectionString"]
+        ?? throw new InvalidOperationException("Redis:ConnectionString is not configured.");
+    return ConnectionMultiplexer.Connect(conn);
+});
 
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
@@ -99,10 +100,18 @@ builder.Services.AddSingleton<IConnectionTracker, RedisConnectionTracker>();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
+var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "Uploads");
+Directory.CreateDirectory(uploadsPath);
+
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "Uploads")),
+    FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/resources"
 });
 
