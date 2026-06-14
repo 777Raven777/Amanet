@@ -263,9 +263,9 @@ public class MessageService
             int rows;
             rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE ""PrivateMessages""
-            SET Text = {newText}, Edited = {true}
-            WHERE Id = {messageId} 
-                AND SenderId = {callerId}");
+            SET ""Text"" = {newText}, ""Edited"" = {true}
+            WHERE ""Id"" = {messageId} 
+                AND ""SenderId"" = {callerId}");
 
             if (rows > 0)
             {
@@ -297,9 +297,9 @@ public class MessageService
 
             int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                 UPDATE ""ChannelMessages""
-                SET Text = {newText}, Edited = {true}
-                WHERE Id = {messageId} 
-                    AND SenderId = {callerId}");
+                SET ""Text"" = {newText}, ""Edited"" = {true}
+                WHERE ""Id"" = {messageId} 
+                    AND ""SenderId"" = {callerId}");
 
             if (rows > 0)
             {
@@ -324,8 +324,8 @@ public class MessageService
             int rows;
             rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                 DELETE FROM ""PrivateMessages""
-                WHERE Id = {messageId} 
-                    AND SenderId = {callerId}");
+                WHERE ""Id"" = {messageId} 
+                    AND ""SenderId"" = {callerId}");
 
             if (rows > 0)
             {
@@ -357,8 +357,8 @@ public class MessageService
 
             rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                 DELETE FROM ""ChannelMessages""
-                WHERE Id = {messageId} 
-                    AND SenderId = {callerId}");
+                WHERE ""Id"" = {messageId} 
+                    AND ""SenderId"" = {callerId}");
 
             if (rows > 0)
             {

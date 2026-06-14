@@ -21,6 +21,32 @@ namespace backend.Services
             _fileService = fileService;
         }
 
+        public async Task<UserDTO?> GetPublicUserByIdAsync(Guid id)
+        {
+            return await _context.Users
+                .Where(u => u.Id == id)
+                .Select(u => new UserDTO
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    ProfilePictureUrl = u.ProfilePictureUrl
+                })
+                .FirstOrDefaultAsync();
+        }
+        public async Task<MeDTO?> GetMeByIdAsync(Guid id)
+        {
+            return await _context.Users
+                .Where(u => u.Id == id)
+                .Select(u => new MeDTO
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    ProfilePictureUrl = u.ProfilePictureUrl,
+                    Email = u.Email
+                })
+                .FirstOrDefaultAsync();
+        }
+
         public async Task<PaginatedUserListDTO> SearchUsersAsync(string username, Guid callerId, int currentPage, int pageSize)
         {
             var users = await _context.Users

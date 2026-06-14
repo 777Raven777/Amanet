@@ -108,7 +108,7 @@ public class ServerParticipantService
     {
         int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                     DELETE FROM ""ServerInvites""
-                    WHERE Id = {inviteId} AND InvitedUserId = {callerId}");
+                    WHERE ""Id"" = {inviteId} AND ""InvitedUserId"" = {callerId}");
 
         if (rows > 0)
         {
@@ -128,7 +128,7 @@ public class ServerParticipantService
 
         int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                     DELETE FROM ""ServerInvites""
-                    WHERE Id = {inviteId} AND InviterId = {callerId}");
+                    WHERE ""Id"" = {inviteId} AND ""InviterId"" = {callerId}");
 
         if (rows > 0)
         {

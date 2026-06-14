@@ -208,5 +208,14 @@ namespace backend.Controllers
             }
             return BadRequest();
         }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<ActionResult<MeDTO>> GetMe()
+        {
+            Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await _mainService.GetMeByIdAsync(callerId);
+            return user is null ? NotFound() : Ok(user);
+        }
     }
 }

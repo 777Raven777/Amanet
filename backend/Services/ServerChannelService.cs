@@ -130,8 +130,8 @@ public class ServerChannelService
 
         int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                     DELETE FROM ""ServerChannels""
-                    WHERE Id = {channelId} 
-                        AND ServerId == {serverId}");
+                    WHERE ""Id"" = {channelId} 
+                        AND ""ServerId"" == {serverId}");
 
         if (rows > 0)
         {

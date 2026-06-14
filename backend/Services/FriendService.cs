@@ -62,10 +62,10 @@ namespace backend.Services
             {
                 int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                     UPDATE ""Relationships""
-                    SET Status = {(int)RelationshipType.Rejected} 
-                    WHERE Id = {relationshipId} 
-                      AND ReceiverId = {callerId} 
-                      AND Status = {(int)RelationshipType.Waiting}");
+                    SET ""Status"" = {(int)RelationshipType.Rejected} 
+                    WHERE ""Id"" = {relationshipId} 
+                      AND ""ReceiverId"" = {callerId} 
+                      AND ""Status"" = {(int)RelationshipType.Waiting}");
 
                 if (rows > 0)
                 {
@@ -165,8 +165,8 @@ namespace backend.Services
             {
                 int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                     DELETE FROM ""Relationships""
-                    WHERE Id = {relationshipId} 
-                        AND (ReceiverId = {callerId} OR SenderId = {callerId})");
+                    WHERE ""Id"" = {relationshipId} 
+                        AND (""ReceiverId"" = {callerId} OR ""SenderId"" = {callerId})");
 
                 if (rows > 0)
                 {

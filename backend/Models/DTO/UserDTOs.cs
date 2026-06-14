@@ -13,6 +13,11 @@ namespace backend.Models.DTO
         public string ProfilePictureUrl { get; set; }
     }
 
+    public class MeDTO : UserDTO
+    {
+        public string Email { get; set; }
+    }
+
     public class LoginRegisterResponse : UserDTO
     {
         public string Token { get; set; }

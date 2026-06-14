@@ -44,11 +44,17 @@ public class ServerService
             Server = server
         };
 
+        var creatorName = await _context.Users
+            .Where(u => u.Id == callerId)
+            .Select(u => u.Username)
+            .FirstOrDefaultAsync();
+
         ServerParticipant admin = new ServerParticipant
         {
             Server = server,
             ParticipantId = callerId,
-            Role = adminRole
+            Role = adminRole,
+            CustomName = creatorName,
         };
 
         _context.Servers.Add(server);
@@ -70,7 +76,7 @@ public class ServerService
         {
             int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
                 DELETE FROM ""Servers"" 
-                WHERE Id = {serverId} AND CreatorId = {callerId}");
+                WHERE ""Id"" = {serverId} AND ""CreatorId"" = {callerId}");
 
             if (rows > 0)
             {
@@ -96,9 +102,9 @@ public class ServerService
 
         int rows = await _context.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE ""Servers"" 
-            SET Name={request.Name}
-            WHERE Id={serverId} 
-                AND CreatorId={callerId}");
+            SET ""Name""={request.Name}
+            WHERE ""Id""={serverId} 
+                AND ""CreatorId""={callerId}");
 
         if (rows > 0)
         {
