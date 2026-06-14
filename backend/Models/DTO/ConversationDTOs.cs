@@ -61,3 +61,16 @@ public class PaginatedMessagesDTO
 
     public bool HasMore { get; set; }
 }
+
+public class ConversationListItemDTO
+{
+    public Guid Id { get; set; }
+    public UserDTO OtherUser { get; set; }
+    public string? LastMessage { get; set; }
+    public DateTime? LastMessageAt { get; set; }
+}
+
+public class PaginatedConversationsDTO : PaginatedListDTO
+{
+    public List<ConversationListItemDTO> Conversations { get; set; }
+}

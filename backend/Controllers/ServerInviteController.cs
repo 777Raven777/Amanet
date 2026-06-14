@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/v1/servers/{serverId}/invites")]
+[Route("api/v1/Servers/{serverId}/invites")]
 public class ServerInviteController : ControllerBase
 {
 

@@ -429,4 +429,50 @@ public class MessageService
         }
         );
     }
+
+    public async Task<PaginatedConversationsDTO> GetConversations(Guid callerId, int currentPage, int pageSize)
+    {
+        var conversations = await _context.Conversations
+            .Where(c => c.UserLowId == callerId || c.UserHighId == callerId)
+            .Select(c => new
+            {
+                c.Id,
+                Other = c.UserLowId == callerId ? c.UserHigh : c.UserLow,
+                Last = _context.PrivateMessages
+                    .Where(m => m.ConversationId == c.Id)
+                    .OrderByDescending(m => m.Id)
+                    .Select(m => new { m.Text, m.CreatedAt })
+                    .FirstOrDefault()
+            })
+            .OrderByDescending(x => x.Last != null ? x.Last.CreatedAt : DateTime.MinValue)
+            .Select(x => new ConversationListItemDTO
+            {
+                Id = x.Id,
+                OtherUser = new UserDTO
+                {
+                    Id = x.Other.Id,
+                    Username = x.Other.Username,
+                    ProfilePictureUrl = x.Other.ProfilePictureUrl,
+                },
+                LastMessage = x.Last != null ? x.Last.Text : null,
+                LastMessageAt = x.Last != null ? x.Last.CreatedAt : (DateTime?)null,
+            })
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize + 1)
+            .ToListAsync();
+
+        bool nextPage = conversations.Count > pageSize;
+        if (nextPage)
+        {
+            conversations.RemoveAt(conversations.Count - 1);
+        }
+
+        return new PaginatedConversationsDTO
+        {
+            PageSize = pageSize,
+            CurrentPage = currentPage,
+            NextPage = nextPage,
+            Conversations = conversations,
+        };
+    }
 }

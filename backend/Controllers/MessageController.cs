@@ -134,5 +134,18 @@ public class MessageController : ControllerBase
         }
         return BadRequest(responseText);
     }
+
+    [Authorize]
+    [HttpGet("dms")]
+    public async Task<ActionResult<PaginatedConversationsDTO>> GetConversations(
+    [FromQuery] int currentPage = 1, [FromQuery] int pageSize = 20)
+    {
+        Guid callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        currentPage = Math.Max(currentPage, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var result = await _service.GetConversations(callerId, currentPage, pageSize);
+        return Ok(result);
+    }
 }
 
