@@ -106,13 +106,12 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "Uploads");
-Directory.CreateDirectory(uploadsPath);
-
+var uploads = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "Uploads");
+Directory.CreateDirectory(uploads);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/resources"
+    FileProvider = new PhysicalFileProvider(uploads),
+    RequestPath = "/uploads"
 });
 
 

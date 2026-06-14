@@ -3,6 +3,7 @@ WORKDIR /src
 COPY ["backend.csproj", "."]
 RUN dotnet restore "backend.csproj"
 COPY . .
+RUN mkdir -p /app/wwwroot/Uploads
 RUN dotnet publish "backend.csproj" -c Release -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
