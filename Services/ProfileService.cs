@@ -13,6 +13,7 @@ public interface IProfileService
 {
     Task<(bool Success, string? Error, UserDTO? User)> UpdateAsync(ProfileUpdate update, CancellationToken ct = default);
     Task<MeDTO?> GetMeAsync(CancellationToken ct = default);
+    Task<byte[]?> DownloadAsync(string url, CancellationToken ct = default);
 }
 
 public record ProfileUpdate(
@@ -56,5 +57,11 @@ public class ProfileService : IProfileService
         var resp = await _http.GetAsync("api/v1/User/me", ct);
         if (!resp.IsSuccessStatusCode) return null;
         return await resp.Content.ReadFromJsonAsync<MeDTO>(Json, ct);
+    }
+
+    public async Task<byte[]?> DownloadAsync(string url, CancellationToken ct = default)
+    {
+        var resp = await _http.GetAsync(url, ct);   // "/uploads/x.png" resolves against BaseAddress
+        return resp.IsSuccessStatusCode ? await resp.Content.ReadAsByteArrayAsync(ct) : null;
     }
 }

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AvaloniaApplication1.ViewModels;
 
-public partial class ProfileSectionViewModel : ViewModelBase
+public partial class ProfileSectionViewModel : ViewModelBase, IActivatable
 {
     private const long MaxAvatarBytes = 8 * 1024 * 1024;
 
@@ -31,6 +31,16 @@ public partial class ProfileSectionViewModel : ViewModelBase
 
             Username = me.Username;
             Email = me.Email;
+            if (!string.IsNullOrEmpty(me.ProfilePictureUrl))
+            {
+                var bytes = await _profileService.DownloadAsync(me.ProfilePictureUrl);
+                if (bytes is not null)
+                {
+                    using var ms = new MemoryStream(bytes);
+                    AvatarPreview?.Dispose();
+                    AvatarPreview = new Bitmap(ms);
+                }
+            }
         }
         catch (HttpRequestException) { StatusMessage = "Couldn't reach the server."; }
     }
@@ -67,7 +77,6 @@ public partial class ProfileSectionViewModel : ViewModelBase
 
     public bool HasAvatarChange => NewAvatarPath != null;
 
-    // Mirrors UserService.PatchProfile: a new password demands the old one.
     public string? PasswordHint
     {
         get

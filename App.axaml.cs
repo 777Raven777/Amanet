@@ -39,6 +39,10 @@ public partial class App : Application
             c.BaseAddress = new Uri("http://localhost:8081/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
+        services.AddHttpClient<IServerService, ServerService>(c =>
+            c.BaseAddress = new Uri("http://localhost:8081/"))
+            .AddHttpMessageHandler<AuthHeaderHandler>();
+
         services.AddSingleton<INavigationService>(sp =>
             new NavigationService(t => (ViewModelBase)sp.GetRequiredService(t)));
 

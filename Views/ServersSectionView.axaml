@@ -2,21 +2,147 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:AvaloniaApplication1.ViewModels"
              x:Class="AvaloniaApplication1.Views.ServersSectionView"
+             x:Name="Root"
              x:DataType="vm:ServersSectionViewModel">
 
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="440">
-        <!-- the jug from the shelf, waiting for the party to start -->
-        <Image Source="{StaticResource IconServers}" Height="88" Opacity="0.45"
-               HorizontalAlignment="Center"/>
-        <TextBlock Text="The pavilions are under construction."
-                   FontSize="16" Foreground="{StaticResource ParchmentBrush}"
-                   HorizontalAlignment="Center"/>
-        <TextBlock Classes="empty"
-                   Text="Servers, channels and roles arrive in the next chapter. The carpenters were paid in ox bezoars, so progress is… motivated."
-                   TextAlignment="Center"/>
-        <Rectangle Height="1" Width="180" Fill="#44CBA75A" HorizontalAlignment="Center"/>
-        <TextBlock Text="殿 — incoming: pavilions, channels &amp; the politics of roles"
-                   FontSize="10" Foreground="{StaticResource BrassBrush}" Opacity="0.5"
-                   HorizontalAlignment="Center"/>
-    </StackPanel>
+    <UserControl.Resources>
+        <!-- a pavilion slip on the register; selecting lights the brass edge -->
+        <ControlTheme x:Key="ServerSlot" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="Slip" CornerRadius="10" BorderThickness="1"
+                            Background="#99231310" BorderBrush="#2ECBA75A"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                                <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <ContentPresenter Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#Slip">
+                <Setter Property="Background" Value="#B32A1813"/>
+                <Setter Property="BorderBrush" Value="#55CBA75A"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#Slip">
+                <Setter Property="Background" Value="#33CBA75A"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BrassBrush}"/>
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <Grid ColumnDefinitions="220,*">
+
+        <!-- ===================== left: the register ===================== -->
+        <DockPanel Grid.Column="0" Margin="0,0,18,0">
+
+            <TextBlock DockPanel.Dock="Top" Text="殿 — your pavilions" FontSize="11"
+                       Foreground="{StaticResource BrassBrush}" Opacity="0.8" Margin="2,0,0,8"/>
+
+            <!-- found a new pavilion -->
+            <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,10,0,0" Padding="10">
+                <StackPanel Spacing="8">
+                    <TextBox Watermark="Name a new pavilion..." Text="{Binding NewServerName}"/>
+                    <Button Classes="primary small" Content="Found pavilion"
+                            HorizontalAlignment="Stretch"
+                            Command="{Binding CreateServerCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <Panel>
+                <TextBlock Classes="empty" Margin="6"
+                           Text="No pavilions yet. Found one below."
+                           IsVisible="{Binding !Servers.Count}"/>
+                <ScrollViewer>
+                    <ListBox ItemsSource="{Binding Servers}"
+                             SelectedItem="{Binding SelectedServer}"
+                             Background="Transparent"
+                             ItemContainerTheme="{StaticResource ServerSlot}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ServerItem">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border Width="34" Height="34" CornerRadius="10"
+                                            Background="#33C8342E" BorderBrush="#66CBA75A" BorderThickness="1">
+                                        <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource ParchmentBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource ParchmentBrush}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Panel>
+        </DockPanel>
+
+        <!-- ===================== right: the open pavilion ===================== -->
+        <Panel Grid.Column="1">
+
+            <!-- nothing chosen -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="420"
+                        IsVisible="{Binding SelectedServer, Converter={x:Static ObjectConverters.IsNull}}">
+                <Image Source="{StaticResource IconServers}" Height="80" Opacity="0.4"
+                       HorizontalAlignment="Center"/>
+                <TextBlock Classes="empty"
+                           Text="Pick a pavilion from the register, or found a new one. Every memorable banquet starts with a venue (and a taste-tester)."/>
+            </StackPanel>
+
+            <!-- a pavilion is open -->
+            <DockPanel IsVisible="{Binding SelectedServer, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+                <!-- header: name + rename / dissolve -->
+                <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,14">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    Spacing="6" VerticalAlignment="Center">
+                            <Button Classes="ghost" Content="Rename"
+                                    IsVisible="{Binding !IsRenamingServer}"
+                                    Command="{Binding StartRenameServerCommand}"/>
+                            <Button Classes="ghost danger" Content="Dissolve"
+                                    IsVisible="{Binding !IsRenamingServer}"
+                                    ToolTip.Tip="Deletes the pavilion and everything in it. No antidote."
+                                    Command="{Binding DeleteServerCommand}"/>
+                            <Button Classes="primary small" Content="Save"
+                                    IsVisible="{Binding IsRenamingServer}"
+                                    Command="{Binding ConfirmRenameServerCommand}"/>
+                            <Button Classes="ghost" Content="Cancel"
+                                    IsVisible="{Binding IsRenamingServer}"
+                                    Command="{Binding CancelRenameServerCommand}"/>
+                        </StackPanel>
+
+                        <Panel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedServer.Name}" FontSize="20" FontWeight="SemiBold"
+                                       Foreground="{StaticResource ParchmentBrush}"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding !IsRenamingServer}"/>
+                            <TextBox Text="{Binding ServerRenameDraft}" MaxWidth="320"
+                                     HorizontalAlignment="Left"
+                                     IsVisible="{Binding IsRenamingServer}"/>
+                        </Panel>
+                    </DockPanel>
+                </Border>
+
+                <!-- server-level status line -->
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}"
+                           FontSize="12" FontStyle="Italic" Margin="0,8,0,0"
+                           Foreground="{StaticResource BrassBrush}"
+                           IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <!-- channels (ServerDetailView, resolved by the ViewLocator) -->
+                <ContentControl Content="{Binding ServerDetail}"/>
+            </DockPanel>
+        </Panel>
+    </Grid>
 </UserControl>

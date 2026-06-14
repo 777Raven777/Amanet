@@ -1,0 +1,382 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             x:Class="AvaloniaApplication1.Views.ServerDetailView"
+             x:Name="Root"
+             x:DataType="vm:ServerDetailViewModel">
+
+    <UserControl.Styles>
+        <!-- permission chip: a tappable toggle, brass when granted -->
+        <Style Selector="ToggleButton.chip">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B0F2E8D5"/>
+            <Setter Property="BorderBrush" Value="#44CBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleButton.chip /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Transitions">
+                <Transitions><BrushTransition Property="Background" Duration="0:0:0.15"/></Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ToggleButton.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1FCBA75A"/>
+        </Style>
+        <Style Selector="ToggleButton.chip:checked">
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrassBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#33CBA75A"/>
+        </Style>
+
+        <!-- rank pick chip: single-click button -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B0F2E8D5"/>
+            <Setter Property="BorderBrush" Value="#44CBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.chip /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions><BrushTransition Property="Background" Duration="0:0:0.15"/></Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.chip:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26CBA75A"/>
+            <Setter Property="Foreground" Value="{StaticResource ParchmentBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel>
+
+        <!-- shared status line for the whole pavilion interior -->
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}"
+                   FontSize="12" FontStyle="Italic" Margin="0,8,0,0"
+                   Foreground="{StaticResource BrassBrush}"
+                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <TabControl Padding="0,10,0,0">
+
+            <!-- ===================== chambers ===================== -->
+            <TabItem Header="Chambers">
+                <DockPanel>
+                    <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,12,0,0" Padding="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Watermark="Name a new chamber..."
+                                     Text="{Binding NewChannelName}"/>
+                            <Button Grid.Column="1" Classes="primary small" Content="Open" Margin="10,0,0,0"
+                                    VerticalAlignment="Stretch"
+                                    Command="{Binding CreateChannelCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <Panel>
+                        <TextBlock Classes="empty"
+                                   Text="No chambers yet. Open one below — somewhere to whisper about the imperial court."
+                                   IsVisible="{Binding !Channels.Count}"/>
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding Channels}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ChannelItem">
+                                        <Border Classes="card" Margin="0,0,0,8">
+                                            <Panel>
+                                                <DockPanel IsVisible="{Binding !IsRenaming}">
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                                Spacing="6" VerticalAlignment="Center">
+                                                        <Button Classes="ghost" Content="Rename"
+                                                                Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).StartRenameChannelCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Classes="ghost danger" Content="Seal"
+                                                                ToolTip.Tip="Deletes the chamber and its letters. Permanent."
+                                                                Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).DeleteChannelCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <TextBlock Text="#" FontSize="15" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                                <DockPanel IsVisible="{Binding IsRenaming}">
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                                Spacing="6" VerticalAlignment="Center">
+                                                        <Button Classes="primary small" Content="Save"
+                                                                Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).ConfirmRenameChannelCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Classes="ghost" Content="Cancel"
+                                                                Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).CancelRenameChannelCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </StackPanel>
+                                                    <TextBox Text="{Binding RenameDraft}" VerticalAlignment="Center"/>
+                                                </DockPanel>
+                                            </Panel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Panel>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ===================== residents ===================== -->
+            <TabItem Header="Residents">
+                <Panel>
+                    <TextBlock Classes="empty"
+                               Text="No other residents yet. A pavilion of one is just a very organised hermit."
+                               IsVisible="{Binding !Participants.Count}"/>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Participants}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ParticipantItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <StackPanel Spacing="10">
+                                            <DockPanel>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                            Spacing="6" VerticalAlignment="Center">
+                                                    <Button Classes="ghost" Content="Change rank"
+                                                            IsVisible="{Binding !IsChangingRole}"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).StartChangeRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Classes="ghost danger" Content="Remove"
+                                                            IsVisible="{Binding !IsChangingRole}"
+                                                            ToolTip.Tip="Removes them from the pavilion. No tea for the road."
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).RemoveParticipantCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Classes="ghost" Content="Cancel"
+                                                            IsVisible="{Binding IsChangingRole}"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).CancelChangeRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                    <Border Width="38" Height="38" CornerRadius="19"
+                                                            Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                        <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                        <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}"/>
+                                                        <TextBlock Text="{Binding RoleName}" FontSize="11"
+                                                                   Foreground="{StaticResource BrassBrush}" Opacity="0.85"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <StackPanel Spacing="6" IsVisible="{Binding IsChangingRole}">
+                                                <TextBlock Text="Assign a new rank:" FontSize="11"
+                                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                                <ItemsControl ItemsSource="{Binding #Root.((vm:ServerDetailViewModel)DataContext).Roles}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:RoleListItem">
+                                                            <Button Classes="chip" Content="{Binding Name}" Margin="0,0,6,6"
+                                                                    Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).AssignRoleCommand}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </TabItem>
+
+            <!-- ===================== ranks ===================== -->
+            <TabItem Header="Ranks">
+                <DockPanel>
+                    <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,12,0,0" Padding="12">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Establish a new rank" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource ParchmentBrush}"/>
+                            <TextBox Watermark="Rank name..." Text="{Binding NewRoleName}"/>
+                            <ItemsControl ItemsSource="{Binding NewRoleToggles}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PermissionToggle">
+                                        <ToggleButton Classes="chip" Content="{Binding Label}"
+                                                      IsChecked="{Binding IsGranted}" Margin="0,0,6,6"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Classes="primary small" Content="Establish" HorizontalAlignment="Left"
+                                    Command="{Binding CreateRoleCommand}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Roles}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RoleListItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <StackPanel Spacing="10">
+                                            <DockPanel>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                            Spacing="6" VerticalAlignment="Center">
+                                                    <Button Classes="ghost" Content="Edit"
+                                                            IsVisible="{Binding ShowManageButtons}"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).StartEditRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Classes="ghost danger" Content="Abolish"
+                                                            IsVisible="{Binding ShowManageButtons}"
+                                                            ToolTip.Tip="Deletes the rank; its holders drop to default."
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).DeleteRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Classes="primary small" Content="Save"
+                                                            IsVisible="{Binding IsEditing}"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).ConfirmEditRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Classes="ghost" Content="Cancel"
+                                                            IsVisible="{Binding IsEditing}"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).CancelEditRoleCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource ParchmentBrush}"
+                                                               VerticalAlignment="Center"
+                                                               IsVisible="{Binding !IsEditing}"/>
+                                                    <TextBox Text="{Binding NameDraft}" MaxWidth="220"
+                                                             IsVisible="{Binding IsEditing}"/>
+                                                    <Border Background="#33CBA75A" CornerRadius="8" Padding="7,2"
+                                                            VerticalAlignment="Center" IsVisible="{Binding IsSystem}">
+                                                        <TextBlock Text="system · locked" FontSize="10"
+                                                                   Foreground="{StaticResource BrassBrush}"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <ItemsControl ItemsSource="{Binding EditToggles}" IsVisible="{Binding IsEditing}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:PermissionToggle">
+                                                        <ToggleButton Classes="chip" Content="{Binding Label}"
+                                                                      IsChecked="{Binding IsGranted}" Margin="0,0,6,6"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ===================== summons (invites) ===================== -->
+            <TabItem Header="Summons">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12" Padding="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Watermark="Search the registry to summon someone..."
+                                     Text="{Binding InviteQuery}"/>
+                            <Button Grid.Column="1" Classes="ghost" Content="Search" Margin="10,0,0,0"
+                                    VerticalAlignment="Stretch"
+                                    Command="{Binding SearchCandidatesCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer>
+                        <StackPanel Spacing="16">
+
+                            <!-- candidates from the registry -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Candidates" FontSize="11"
+                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                <TextBlock Classes="empty" Margin="6"
+                                           Text="Search above to find someone to summon."
+                                           IsVisible="{Binding !InviteCandidates.Count}"/>
+                                <ItemsControl ItemsSource="{Binding InviteCandidates}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:InviteCandidate">
+                                            <Border Classes="card" Margin="0,0,0,8">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Classes="primary small" Content="Summon"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).SendInviteCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                        <Border Width="34" Height="34" CornerRadius="17"
+                                                                Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- pending summons -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Pending summons" FontSize="11"
+                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                <TextBlock Classes="empty" Margin="6"
+                                           Text="No summons awaiting an answer."
+                                           IsVisible="{Binding !SentInvites.Count}"/>
+                                <ItemsControl ItemsSource="{Binding SentInvites}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SentInviteItem">
+                                            <Border Classes="card" Margin="0,0,0,8">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Classes="ghost danger" Content="Rescind"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).RescindInviteCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                        <Border Width="34" Height="34" CornerRadius="17"
+                                                                Background="#26CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                            <TextBlock Text="{Binding InvitedUsername}" FontSize="14" FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource ParchmentBrush}"/>
+                                                            <TextBlock Text="awaiting an answer" FontSize="11"
+                                                                       Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</UserControl>

@@ -37,10 +37,6 @@ public partial class InvitesSectionViewModel : ViewModelBase, IActivatable
 
     public ObservableCollection<ServerInviteItem> ReceivedInvites { get; } = [];
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasInvites))]
-    private string? _statusMessage;
-
     public bool HasInvites => ReceivedInvites.Count > 0;
 
     [RelayCommand]
@@ -64,6 +60,4 @@ public partial class InvitesSectionViewModel : ViewModelBase, IActivatable
         }
         else StatusMessage = "Could not reject the invite.";
     }
-
-    // TODO: load on activation — GET api/v1/User/server-invites?currentPage=1&pageSize=20
 }
