@@ -43,6 +43,15 @@ public partial class App : Application
             c.BaseAddress = new Uri("http://localhost:8081/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
+        //added
+        services.AddSingleton<IChatSocket>(sp =>
+            new ChatSocket(sp.GetRequiredService<ISession>(), new Uri("http://localhost:8081/")));
+
+        //addded
+        /*services.AddSingleton<Func<Guid, Guid, ChannelChatViewModel>>(sp =>
+            (serverId, channelId) => new ChannelChatViewModel(
+                    sp.GetRequiredService<IChatSocket>(), serverId, channelId));*/
+
         services.AddSingleton<INavigationService>(sp =>
             new NavigationService(t => (ViewModelBase)sp.GetRequiredService(t)));
 

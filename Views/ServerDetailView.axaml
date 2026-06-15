@@ -70,6 +70,7 @@
             <!-- ===================== chambers ===================== -->
             <TabItem Header="Chambers">
                 <DockPanel>
+                    <!-- new chamber input, pinned to the very bottom -->
                     <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,12,0,0" Padding="10">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0" Watermark="Name a new chamber..."
@@ -80,6 +81,12 @@
                         </Grid>
                     </Border>
 
+                    <!-- the opened chamber's chat, docked above the input -->
+                    <ContentControl DockPanel.Dock="Bottom" Margin="0,12,0,0" MaxHeight="360"
+                                    Content="{Binding ActiveChannel}"
+                                    IsVisible="{Binding ActiveChannel, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+                    <!-- channel list fills the rest -->
                     <Panel>
                         <TextBlock Classes="empty"
                                    Text="No chambers yet. Open one below — somewhere to whisper about the imperial court."
@@ -99,6 +106,9 @@
                                                         <Button Classes="ghost danger" Content="Seal"
                                                                 ToolTip.Tip="Deletes the chamber and its letters. Permanent."
                                                                 Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).DeleteChannelCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Classes="ghost" Content="Open"
+                                                                Command="{Binding #Root.((vm:ServerDetailViewModel)DataContext).OpenChannelCommand}"
                                                                 CommandParameter="{Binding}"/>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

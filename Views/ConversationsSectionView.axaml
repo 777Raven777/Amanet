@@ -1,23 +1,229 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:AvaloniaApplication1.ViewModels"
+             xmlns:dto="using:AvaloniaApplication1.DTO" 
+             xmlns:viewModels="clr-namespace:MyApp.Core.ViewModels;assembly=Myapp.Core"
              x:Class="AvaloniaApplication1.Views.ConversationsSectionView"
+             x:Name="Root"
              x:DataType="vm:ConversationsSectionViewModel">
 
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="440">
-        <!-- an unopened letter waiting on the desk -->
-        <Image Source="{StaticResource IconLetterSealed}" Height="84" Opacity="0.5"
-               HorizontalAlignment="Center"/>
-        <TextBlock Text="No letters yet."
-                   FontSize="16" Foreground="{StaticResource ParchmentBrush}"
-                   HorizontalAlignment="Center"/>
-        <TextBlock Classes="empty"
-                   Text="Private correspondence opens soon. All messages will be read-tested for poison first — by someone who volunteers a bit too eagerly."
-                   TextAlignment="Center"/>
-        <!-- a thin brass rule, like the edge of a writing desk -->
-        <Rectangle Height="1" Width="180" Fill="#44CBA75A" HorizontalAlignment="Center"/>
-        <TextBlock Text="文 — incoming: cursor pagination &amp; live delivery"
-                   FontSize="10" Foreground="{StaticResource BrassBrush}" Opacity="0.5"
-                   HorizontalAlignment="Center"/>
-    </StackPanel>
+    <UserControl.Styles>
+        <!-- a single letter in the thread -->
+        <Style Selector="Border.letter">
+            <Setter Property="Background" Value="#1FCBA75A"/>
+            <Setter Property="BorderBrush" Value="#33CBA75A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <!-- a row in the conversation list -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel>
+        <!-- shared status line -->
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}"
+                   FontSize="12" FontStyle="Italic" Margin="0,8,0,0"
+                   Foreground="{StaticResource BrassBrush}"
+                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <Grid ColumnDefinitions="280,12,*">
+
+            <!-- ============ left: conversations ============ -->
+            <DockPanel Grid.Column="0">
+                <Button DockPanel.Dock="Top" Classes="primary" Content="✍  New letter"
+                        HorizontalAlignment="Stretch" Margin="0,0,0,10"
+                        Command="{Binding StartNewLetterCommand}"/>
+
+                <TextBlock DockPanel.Dock="Top" Classes="empty"
+                           Text="No correspondence yet. Pen a new letter above."
+                           IsVisible="{Binding !Conversations.Count}"/>
+
+                <ScrollViewer>
+                    <ListBox ItemsSource="{Binding Conversations}"
+                             SelectedItem="{Binding SelectedConversation}"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="dto:ConversationListItemDTO">
+                                <Border Classes="card" Padding="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <Border Width="34" Height="34" CornerRadius="17"
+                                                Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                            <TextBlock Text="✉" FontSize="15"
+                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding OtherUser.Username}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource ParchmentBrush}"/>
+                                            <TextBlock Text="{Binding LastMessage}" FontSize="11"
+                                                       Foreground="{StaticResource BrassBrush}" Opacity="0.8"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="190"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- ============ right: one of three states ============ -->
+            <Grid Grid.Column="2">
+
+                <!-- (a) empty -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                            MaxWidth="440" IsVisible="{Binding ShowEmpty}">
+                    <Image Source="{StaticResource IconLetterSealed}" Height="84" Opacity="0.5"
+                           HorizontalAlignment="Center"/>
+                    <TextBlock Text="Pick a thread, or pen a new letter."
+                               FontSize="16" Foreground="{StaticResource ParchmentBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- (b) new-letter recipient picker -->
+                <DockPanel IsVisible="{Binding ShowPicker}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                        <Button DockPanel.Dock="Right" Classes="ghost" Content="Cancel"
+                                Command="{Binding CancelNewLetterCommand}"/>
+                        <TextBlock Text="To whom?" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12" Padding="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Watermark="Search the registry by name..."
+                                     Text="{Binding RecipientQuery}">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding SearchRecipientsCommand}"/>
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                            <Button Grid.Column="1" Classes="ghost" Content="Search" Margin="10,0,0,0"
+                                    VerticalAlignment="Stretch" Command="{Binding SearchRecipientsCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer>
+                        <StackPanel Spacing="16">
+                            <!-- friends -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Friends" FontSize="11"
+                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                <TextBlock Classes="empty" Margin="6"
+                                           Text="No friends to write to yet."
+                                           IsVisible="{Binding !Friends.Count}"/>
+                                <ItemsControl ItemsSource="{Binding Friends}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RecipientCandidate">
+                                            <Border Classes="card" Margin="0,0,0,8">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Classes="primary small" Content="Write"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding #Root.((vm:ConversationsSectionViewModel)DataContext).PickRecipientCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                        <Border Width="34" Height="34" CornerRadius="17"
+                                                                Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- search results (randoms) -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="From the registry" FontSize="11"
+                                           Foreground="{StaticResource BrassBrush}" Opacity="0.8"/>
+                                <ItemsControl ItemsSource="{Binding SearchResults}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RecipientCandidate">
+                                            <Border Classes="card" Margin="0,0,0,8">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Classes="primary small" Content="Write"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding #Root.((vm:ConversationsSectionViewModel)DataContext).PickRecipientCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                        <Border Width="34" Height="34" CornerRadius="17"
+                                                                Background="#26CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+                                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource ParchmentBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+
+                <!-- (c) thread + composer -->
+                <DockPanel IsVisible="{Binding ShowThread}">
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding ThreadTitle}"
+                               FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"
+                               Foreground="{StaticResource ParchmentBrush}"/>
+
+                    <!-- composer pinned to the bottom -->
+                    <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,12,0,0" Padding="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Watermark="Write your letter..."
+                                     Text="{Binding Draft}" AcceptsReturn="False">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding SendCommand}"/>
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                            <Button Grid.Column="1" Classes="primary small" Content="Send" Margin="10,0,0,0"
+                                    VerticalAlignment="Stretch" Command="{Binding SendCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Name="MessageScroll">
+                        <StackPanel Spacing="8">
+                            <Button Classes="ghost" Content="Load older letters"
+                                    HorizontalAlignment="Center" Margin="0,0,0,4"
+                                    Command="{Binding LoadOlderCommand}"/>
+                            <ItemsControl ItemsSource="{Binding Messages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="dto:MessageDTO">
+                                        <Border Classes="letter" Margin="0,0,0,2">
+                                            <StackPanel Spacing="3">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="{Binding Sender.Username}" FontSize="12" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource BrassBrush}"/>
+                                                    <TextBlock Text="{Binding SentAt}" FontSize="10" Opacity="0.6"
+                                                               Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="(edited)" FontSize="10" Opacity="0.6" FontStyle="Italic"
+                                                               Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"
+                                                               IsVisible="{Binding Edited}"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+                                                           Foreground="{StaticResource ParchmentBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </DockPanel>
 </UserControl>

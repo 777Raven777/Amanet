@@ -21,6 +21,10 @@ public interface IServerService
     Task<bool> EditChannelAsync(Guid serverId, Guid channelId, string name, CancellationToken ct = default);
     Task<bool> DeleteChannelAsync(Guid serverId, Guid channelId, CancellationToken ct = default);
 
+    // Channel messages (these live under the Message controller, note "server-channels").
+    Task<MessageDTO?> SendChannelMessageAsync(Guid serverId, Guid channelId, string text, CancellationToken ct = default);
+    Task<PaginatedMessagesDTO?> GetChannelMessagesAsync(Guid serverId, Guid channelId, Guid? cursor = null, int pageSize = 20, CancellationToken ct = default);
+
     Task<List<RoleDTO>> GetRolesAsync(Guid serverId, CancellationToken ct = default);
     Task<RoleDTO?> GetRoleAsync(Guid serverId, Guid roleId, CancellationToken ct = default);
     Task<RoleDTO?> CreateRoleAsync(Guid serverId, string name, List<Permissions> actions, CancellationToken ct = default);
@@ -91,6 +95,26 @@ public class ServerService : IServerService
     {
         var resp = await _http.DeleteAsync($"api/v1/servers/{serverId}/channels/{channelId}", ct);
         return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<MessageDTO?> SendChannelMessageAsync(Guid serverId, Guid channelId, string text, CancellationToken ct = default)
+    {
+        // Confirmed route: POST api/v1/Message/servers/{serverId}/server-channels/{channelId}/send-message
+        var resp = await _http.PostAsJsonAsync(
+            $"api/v1/Message/servers/{serverId}/server-channels/{channelId}/send-message",
+            new { Message = text },
+            ct);
+        if (!resp.IsSuccessStatusCode) return null;
+        return await resp.Content.ReadFromJsonAsync<MessageDTO>(Json, ct);
+    }
+
+    public async Task<PaginatedMessagesDTO?> GetChannelMessagesAsync(Guid serverId, Guid channelId, Guid? cursor = null, int pageSize = 20, CancellationToken ct = default)
+    {
+        var url = $"api/v1/Message/servers/{serverId}/server-channels/{channelId}/get-messages?pageSize={pageSize}";
+        if (cursor is { } c) url += $"&cursor={c}";
+        var resp = await _http.GetAsync(url, ct);
+        if (!resp.IsSuccessStatusCode) return null;
+        return await resp.Content.ReadFromJsonAsync<PaginatedMessagesDTO>(Json, ct);
     }
 
     public async Task<List<RoleDTO>> GetRolesAsync(Guid serverId, CancellationToken ct = default)

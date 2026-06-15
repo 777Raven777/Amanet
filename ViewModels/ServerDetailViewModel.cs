@@ -35,6 +35,17 @@ public partial class ServerDetailViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(SearchCandidatesCommand))]
     private string _inviteQuery = string.Empty;
 
+    [ObservableProperty] 
+    private ChannelChatViewModel? _activeChannel;
+
+    [RelayCommand]
+    private void OpenChannel(ChannelItem channel)
+    {
+        var chat = new ChannelChatViewModel(_service, ServerId, channel.Id, channel.Name);
+        ActiveChannel = chat;
+        _ = chat.LoadAsync();
+    }
+
     public ObservableCollection<PermissionToggle> NewRoleToggles { get; }
 
     public ServerDetailViewModel(IServerService service, IServerInvitesService inviteService, Guid serverId)

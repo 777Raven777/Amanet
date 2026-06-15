@@ -38,4 +38,12 @@
       <DependentUpon>FriendsSectionView.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="backend\**" />
+    <AvaloniaXaml Remove="backend\**" />
+    <EmbeddedResource Remove="backend\**" />
+    <None Remove="backend\**" />
+  </ItemGroup>
+
 </Project>
