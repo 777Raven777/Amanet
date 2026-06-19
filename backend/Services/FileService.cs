@@ -43,8 +43,7 @@
             {
                 throw new ArgumentNullException(nameof(fileNameWithExtension));
             }
-            var contentPath = environment.WebRootPath;
-            var path = Path.Combine(contentPath, fileNameWithExtension); // fileNameWithExtension ->  /uploads/name.jpg
+            var path = Path.Combine(environment.ContentRootPath, "wwwroot", "Uploads", fileNameWithExtension);
 
             if (!File.Exists(path))
             {
