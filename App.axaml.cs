@@ -19,33 +19,34 @@ public partial class App : Application
         // infrastructure
         services.AddSingleton<ISession, Session>();
         services.AddHttpClient<IAuthService, AuthService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"));
+            c.BaseAddress = new Uri("http://localhost:8181/"));
 
         services.AddTransient<AuthHeaderHandler>();
 
         services.AddHttpClient<IFriendService, FriendService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"))
+            c.BaseAddress = new Uri("http://localhost:8181/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
         services.AddHttpClient<IConversationService, ConversationService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"))
+            c.BaseAddress = new Uri("http://localhost:8181/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
         services.AddHttpClient<IServerInvitesService, ServerInvitesService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"))
+            c.BaseAddress = new Uri("http://localhost:8181/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
         services.AddHttpClient<IProfileService, ProfileService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"))
+            c.BaseAddress = new Uri("http://localhost:8181/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
         services.AddHttpClient<IServerService, ServerService>(c =>
-            c.BaseAddress = new Uri("http://localhost:8081/"))
+            c.BaseAddress = new Uri("http://localhost:8181/"))
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
-        //added
-        services.AddSingleton<IChatSocket>(sp =>
-            new ChatSocket(sp.GetRequiredService<ISession>(), new Uri("http://localhost:8081/")));
+        services.AddSingleton<IChatHub>(sp =>
+            new ChatHubClient(
+                sp.GetRequiredService<ISession>(),
+                new Uri("http://localhost:8181/")));
 
         //addded
         /*services.AddSingleton<Func<Guid, Guid, ChannelChatViewModel>>(sp =>

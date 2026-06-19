@@ -22,6 +22,8 @@ public class MessageDTO
     public DateTime SentAt { get; set; }
 
     public bool Edited { get; set; }
+
+    public Guid? SourceId { get; set; }
 }
 
 public class CreateOrPatchMessageDTO

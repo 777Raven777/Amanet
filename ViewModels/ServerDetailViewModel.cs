@@ -14,6 +14,8 @@ public partial class ServerDetailViewModel : ViewModelBase
 {
     private readonly IServerService _service;
     private readonly IServerInvitesService _inviteService;
+    private readonly IChatHub _hub;
+    private readonly IProfileService _profileService;
 
     public Guid ServerId { get; }
 
@@ -41,19 +43,21 @@ public partial class ServerDetailViewModel : ViewModelBase
     [RelayCommand]
     private void OpenChannel(ChannelItem channel)
     {
-        var chat = new ChannelChatViewModel(_service, ServerId, channel.Id, channel.Name);
+        var chat = new ChannelChatViewModel(_service, _hub, ServerId, channel.Id, channel.Name, _profileService);
         ActiveChannel = chat;
         _ = chat.LoadAsync();
     }
 
     public ObservableCollection<PermissionToggle> NewRoleToggles { get; }
 
-    public ServerDetailViewModel(IServerService service, IServerInvitesService inviteService, Guid serverId)
+    public ServerDetailViewModel(IServerService service, IChatHub hub, IServerInvitesService inviteService, Guid serverId, IProfileService profileService)
     {
         _service = service;
+        _hub = hub;
         _inviteService = inviteService;
         ServerId = serverId;
         NewRoleToggles = PermissionInfo.BuildToggles(null);
+        _profileService = profileService;
     }
 
     public async Task LoadAsync()

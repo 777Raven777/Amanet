@@ -1,126 +1,76 @@
 ﻿using Avalonia.Threading;
+using AvaloniaApplication1.DTO;
+using AvaloniaApplication1.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.AspNetCore.SignalR.Client;
 using System;
-using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
-namespace AvaloniaApplication1.Services;
-
-public interface IChatSocket
+public interface IChatHub
 {
-    bool IsConnected { get; }
-    Task ConnectAsync(CancellationToken ct = default);
+    Task ConnectAsync();
     Task DisconnectAsync();
-    Task SendAsync(OutgoingChatMessage msg, CancellationToken ct = default);
+    Task JoinChannelAsync(Guid channelId);
+    Task SendChannelMessageAsync(Guid channelId, Guid serverId, string text);
+    Task JoinConversationAsync(Guid conversationId);
+    Task SendPrivateMessageAsync(Guid conversationId, string text);
+
+    Task LeaveChannelAsync(Guid channelId);
 }
 
-// Uses the built-in ClientWebSocket — no NuGet package required.
-public sealed class ChatSocket : IChatSocket
+public sealed class ChatHubClient : IChatHub
 {
     private readonly ISession _session;
-    private readonly Uri _httpBaseAddress;          // same base URL as your HttpClient
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private readonly Uri _baseAddress;
+    private HubConnection? _hub;
 
-    private ClientWebSocket? _socket;
-    private CancellationTokenSource? _cts;
-
-    // TODO: confirm the socket path with your backend.
-    private const string SocketPath = "ws/chat";
-
-    public ChatSocket(ISession session, Uri httpBaseAddress)
+    public ChatHubClient(ISession session, Uri baseAddress)
     {
         _session = session;
-        _httpBaseAddress = httpBaseAddress;
+        _baseAddress = baseAddress;
     }
 
-    public bool IsConnected => _socket is { State: WebSocketState.Open };
-
-    public async Task ConnectAsync(CancellationToken ct = default)
+    public async Task ConnectAsync()
     {
-        if (IsConnected) return;
+        if (_hub is { State: HubConnectionState.Connected }) return;
 
-        _socket = new ClientWebSocket();
+        _hub = new HubConnectionBuilder()
+            .WithUrl(new Uri(_baseAddress, "chathub"), options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult(_session.Token);
+            })
+            .WithAutomaticReconnect()
+            .Build();
 
-        // ClientWebSocket can set headers (unlike browser sockets). If your server
-        // wants the token in the query string instead, append ?access_token=... below.
-        if (_session.Token is { } token)
-            _socket.Options.SetRequestHeader("Authorization", $"Bearer {token}");
+        _hub.On<MessageDTO>("ReceivePrivateMessage", m =>
+            Dispatcher.UIThread.Post(() =>
+                WeakReferenceMessenger.Default.Send(new PrivateMessageReceived(m))));
 
-        await _socket.ConnectAsync(BuildSocketUri(), ct);
+        _hub.On<MessageDTO>("ReceiveChannelMessage", m =>
+            Dispatcher.UIThread.Post(() =>
+                WeakReferenceMessenger.Default.Send(new ChannelMessageReceived(m))));
 
-        _cts = new CancellationTokenSource();
-        _ = Task.Run(() => ReceiveLoopAsync(_cts.Token));
+        await _hub.StartAsync();
     }
+
+    public Task JoinChannelAsync(Guid channelId) =>
+        _hub!.InvokeAsync("JoinChannel", channelId);
+
+    public Task SendChannelMessageAsync(Guid channelId, Guid serverId, string text) =>
+        _hub!.InvokeAsync("SendChannelMessage", channelId, serverId, text);
+
+    public Task JoinConversationAsync(Guid conversationId) =>
+        _hub!.InvokeAsync("JoinConversation", conversationId);
+
+    public Task SendPrivateMessageAsync(Guid conversationId, string text) =>
+        _hub!.InvokeAsync("SendPrivateMessage", conversationId, text);
+
+    public Task LeaveChannelAsync(Guid channelId) =>
+        _hub!.InvokeAsync("LeaveChannel", channelId);
 
     public async Task DisconnectAsync()
     {
-        _cts?.Cancel();
-        if (_socket is { State: WebSocketState.Open })
-        {
-            try { await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None); }
-            catch { /* closing a dead socket is fine */ }
-        }
-        _socket?.Dispose();
-        _socket = null;
-    }
-
-    public async Task SendAsync(OutgoingChatMessage msg, CancellationToken ct = default)
-    {
-        if (!IsConnected) return;
-
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(msg, Json);
-
-        // ClientWebSocket forbids concurrent sends — serialize them.
-        await _sendLock.WaitAsync(ct);
-        try
-        {
-            await _socket!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
-        }
-        finally { _sendLock.Release(); }
-    }
-
-    private async Task ReceiveLoopAsync(CancellationToken ct)
-    {
-        var buffer = new byte[8192];
-
-        try
-        {
-            while (IsConnected && !ct.IsCancellationRequested)
-            {
-                using var ms = new System.IO.MemoryStream();
-                WebSocketReceiveResult result;
-                do
-                {
-                    result = await _socket!.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
-                    if (result.MessageType == WebSocketMessageType.Close) return;
-                    ms.Write(buffer, 0, result.Count);
-                }
-                while (!result.EndOfMessage);
-
-                var json = Encoding.UTF8.GetString(ms.ToArray());
-                var incoming = JsonSerializer.Deserialize<IncomingChatMessage>(json, Json);
-                if (incoming is not null) Publish(incoming);
-            }
-        }
-        catch (OperationCanceledException) { /* normal on disconnect */ }
-        catch (WebSocketException) { /* connection dropped — see reconnect note */ }
-        // TODO (optional): on unexpected drop, attempt ConnectAsync again after a delay.
-    }
-
-    private static void Publish(IncomingChatMessage msg) =>
-        Dispatcher.UIThread.Post(() =>
-            WeakReferenceMessenger.Default.Send(new ChatMessageReceived(msg)));
-
-    private Uri BuildSocketUri()
-    {
-        var b = new UriBuilder(new Uri(_httpBaseAddress, SocketPath))
-        {
-            Scheme = _httpBaseAddress.Scheme == "https" ? "wss" : "ws"
-        };
-        return b.Uri;
+        if (_hub is not null) await _hub.DisposeAsync();
+        _hub = null;
     }
 }

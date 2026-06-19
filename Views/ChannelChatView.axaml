@@ -45,30 +45,46 @@
         </Border>
 
         <!-- thread -->
-        <ScrollViewer>
+		<ScrollViewer Name="ThreadScroll">
             <StackPanel Spacing="8">
                 <Button Classes="ghost" Content="Load older messages"
                         HorizontalAlignment="Center" Margin="0,0,0,4"
                         Command="{Binding LoadOlderCommand}"/>
                 <ItemsControl ItemsSource="{Binding Messages}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="dto:MessageDTO">
-                            <Border Classes="letter" Margin="0,0,0,2">
-                                <StackPanel Spacing="3">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Sender.Username}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource BrassBrush}"/>
-                                        <TextBlock Text="{Binding SentAt}" FontSize="10" Opacity="0.6"
-                                                   Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="(edited)" FontSize="10" Opacity="0.6" FontStyle="Italic"
-                                                   Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"
-                                                   IsVisible="{Binding Edited}"/>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
-                                               Foreground="{StaticResource ParchmentBrush}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
+						<DataTemplate x:DataType="vm:MessageItem">
+							<Border Classes="letter" Margin="0,0,0,2">
+								<DockPanel>
+									<!-- avatar: initial letter underneath, image on top when loaded -->
+									<Panel DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,10,0" VerticalAlignment="Top">
+										<Border CornerRadius="17"
+												Background="#33CBA75A" BorderBrush="#66CBA75A" BorderThickness="1">
+											<TextBlock Text="{Binding Initial}" FontWeight="SemiBold"
+													   Foreground="{StaticResource ParchmentBrush}"
+													   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										</Border>
+										<Border CornerRadius="17" ClipToBounds="True"
+												IsVisible="{Binding Avatar, Converter={x:Static ObjectConverters.IsNotNull}}">
+											<Image Source="{Binding Avatar}" Width="34" Height="34" Stretch="UniformToFill"/>
+										</Border>
+									</Panel>
+
+									<StackPanel Spacing="3">
+										<StackPanel Orientation="Horizontal" Spacing="8">
+											<TextBlock Text="{Binding Username}" FontSize="12" FontWeight="SemiBold"
+													   Foreground="{StaticResource BrassBrush}"/>
+											<TextBlock Text="{Binding SentAt}" FontSize="10" Opacity="0.6"
+													   Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"/>
+											<TextBlock Text="(edited)" FontSize="10" Opacity="0.6" FontStyle="Italic"
+													   Foreground="{StaticResource BrassBrush}" VerticalAlignment="Center"
+													   IsVisible="{Binding Edited}"/>
+										</StackPanel>
+										<TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+												   Foreground="{StaticResource ParchmentBrush}"/>
+									</StackPanel>
+								</DockPanel>
+							</Border>
+						</DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>

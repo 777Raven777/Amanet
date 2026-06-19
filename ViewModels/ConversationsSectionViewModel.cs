@@ -2,30 +2,33 @@ using AvaloniaApplication1.DTO;
 using AvaloniaApplication1.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel.Design;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace AvaloniaApplication1.ViewModels;
 
-public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
+public partial class ConversationsSectionViewModel : ViewModelBase,
+    IActivatable, IRecipient<PrivateMessageReceived>, IDisposable
 {
     private readonly IConversationService _conversations;
     private readonly IFriendService _friends;
+    private readonly IChatHub _hub;
 
-    public ConversationsSectionViewModel(IConversationService conversations, IFriendService friends)
+    public ConversationsSectionViewModel(IConversationService conversations, IFriendService friends, IChatHub hub)
     {
         _conversations = conversations;
         _friends = friends;
+        _hub = hub;
+        WeakReferenceMessenger.Default.Register(this);
     }
 
     public ObservableCollection<ConversationListItemDTO> Conversations { get; } = [];
     public ObservableCollection<MessageDTO> Messages { get; } = [];
 
-    // Candidates for a brand-new letter.
     public ObservableCollection<RecipientCandidate> Friends { get; } = [];
     public ObservableCollection<RecipientCandidate> SearchResults { get; } = [];
 
@@ -70,7 +73,6 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
         ?? PendingRecipient?.Username
         ?? (IsComposingNew ? "A new letter" : string.Empty);
 
-    // Right-pane state, kept mutually exclusive.
     public bool ShowPicker => IsComposingNew && PendingRecipient is null;
     public bool ShowThread => SelectedConversation is not null || PendingRecipient is not null;
     public bool ShowEmpty => !IsComposingNew && SelectedConversation is null && PendingRecipient is null;
@@ -83,6 +85,8 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
             Conversations.Clear();
             foreach (var c in list?.Conversations ?? [])
                 Conversations.Add(c);
+
+            await _hub.ConnectAsync();   // idempotent — shared singleton connection
         }
         catch (HttpRequestException) { StatusMessage = "Couldn't reach the server."; }
     }
@@ -91,7 +95,6 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
     {
         if (value is null) return;
 
-        // Choosing an existing thread cancels any half-written new letter.
         IsComposingNew = false;
         PendingRecipient = null;
 
@@ -99,6 +102,17 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
         _hasMore = false;
         Messages.Clear();
         _ = LoadMessagesAsync(value.Id, initial: true);
+        _ = _hub.JoinConversationAsync(value.Id);   // join group for live updates
+    }
+
+    public void Receive(PrivateMessageReceived message)
+    {
+        var m = message.Message;
+
+        if (m.SourceId != SelectedConversation?.Id) return;
+
+        if (Messages.Any(x => x.Id == m.Id)) return;   // dedup (our own echo, etc.)
+        Messages.Add(m);
     }
 
     private async Task LoadMessagesAsync(Guid conversationId, bool initial)
@@ -108,7 +122,6 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
             var page = await _conversations.GetMessagesAsync(conversationId, initial ? null : _cursor);
             if (page is null) { StatusMessage = "Couldn't load messages."; return; }
 
-            // Server returns newest-first; insert at 0 so the collection reads oldest→newest top-to-bottom.
             foreach (var m in page.Messages)
                 Messages.Insert(0, m);
 
@@ -125,8 +138,6 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
             await LoadMessagesAsync(c.Id, initial: false);
     }
 
-    // ----- new letter flow -----
-
     [RelayCommand]
     private async Task StartNewLetterAsync()
     {
@@ -142,11 +153,7 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
             var friends = await _friends.GetFriendsAsync();
             Friends.Clear();
             foreach (var f in friends)
-                Friends.Add(new RecipientCandidate
-                {
-                    Id = f.Friend.Id,
-                    Username = f.Friend.Username,
-                });
+                Friends.Add(new RecipientCandidate { Id = f.Friend.Id, Username = f.Friend.Username });
         }
         catch (HttpRequestException) { StatusMessage = "Couldn't reach the server."; }
     }
@@ -185,8 +192,6 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
     [RelayCommand]
     private void PickRecipient(RecipientCandidate candidate) => PendingRecipient = candidate;
 
-    // ----- sending -----
-
     private bool CanSend =>
         !string.IsNullOrWhiteSpace(Draft)
         && (SelectedConversation is not null || PendingRecipient is not null);
@@ -201,10 +206,7 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
         {
             if (SelectedConversation is { } convo)
             {
-                var msg = await _conversations.SendToConversationAsync(convo.Id, text);
-                if (msg is null) { StatusMessage = "The letter wouldn't send."; return; }
-
-                Messages.Add(msg);                 // newest goes to the bottom
+                await _hub.SendPrivateMessageAsync(convo.Id, text);
                 Draft = string.Empty;
             }
             else if (PendingRecipient is { } rec)
@@ -216,12 +218,10 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
                 IsComposingNew = false;
                 PendingRecipient = null;
 
-                // The response carries no conversation id, so refresh the list and
-                // open the thread with this user to continue it.
                 await ReloadAndSelectByUserAsync(rec.Id);
             }
         }
-        catch (HttpRequestException) { StatusMessage = "Couldn't reach the server."; }
+        catch (Exception) { StatusMessage = "The letter wouldn't send."; }
     }
 
     private async Task ReloadAndSelectByUserAsync(Guid userId)
@@ -233,8 +233,10 @@ public partial class ConversationsSectionViewModel : ViewModelBase, IActivatable
 
         var match = Conversations.FirstOrDefault(c => c.OtherUser?.Id == userId);
         if (match is not null)
-            SelectedConversation = match; // triggers message load
+            SelectedConversation = match;   // triggers load + group join
     }
+
+    public void Dispose() => WeakReferenceMessenger.Default.Unregister<PrivateMessageReceived>(this);
 }
 
 public partial class RecipientCandidate : ObservableObject

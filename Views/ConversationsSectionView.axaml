@@ -42,7 +42,7 @@
                            Text="No correspondence yet. Pen a new letter above."
                            IsVisible="{Binding !Conversations.Count}"/>
 
-                <ScrollViewer>
+				<ScrollViewer>
                     <ListBox ItemsSource="{Binding Conversations}"
                              SelectedItem="{Binding SelectedConversation}"
                              Background="Transparent">

@@ -12,6 +12,8 @@ public partial class ServersSectionViewModel : ViewModelBase, IActivatable
 {
     private readonly IServerService _service;
     private readonly IServerInvitesService _inviteService;
+    private readonly IChatHub _hub;
+    private readonly IProfileService _profileService;
 
     public ObservableCollection<ServerItem> Servers { get; } = [];
 
@@ -31,10 +33,12 @@ public partial class ServersSectionViewModel : ViewModelBase, IActivatable
     [NotifyCanExecuteChangedFor(nameof(CreateServerCommand))]
     private string _newServerName = string.Empty;
 
-    public ServersSectionViewModel(IServerService service, IServerInvitesService inviteService)
+    public ServersSectionViewModel(IServerService service, IServerInvitesService inviteService, IChatHub hub, IProfileService profileService)
     {
         _service = service;
         _inviteService = inviteService;
+        _hub = hub;
+        _profileService = profileService;
     }
 
     public async Task ActivateAsync()
@@ -63,7 +67,7 @@ public partial class ServersSectionViewModel : ViewModelBase, IActivatable
             return;
         }
 
-        var detail = new ServerDetailViewModel(_service, _inviteService, value.Id);
+        var detail = new ServerDetailViewModel(_service, _hub, _inviteService, value.Id, _profileService);
         ServerDetail = detail;
         _ = LoadDetailAsync(detail);
     }
