@@ -46,7 +46,7 @@
     ports:
       - "8181:8080"
     volumes:
-     - uploads:/app/Uploads
+      - uploads:/app/wwwroot/Uploads
 
 volumes:
   db-data:
