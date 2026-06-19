@@ -44,6 +44,7 @@ builder.Services.AddScoped<ServerChannelService>();
 builder.Services.AddScoped<ServerService>();
 builder.Services.AddScoped<ServerParticipantService>();
 builder.Services.AddScoped<RoleService>();
+builder.Services.AddSingleton<IUserIdProvider, NameIdUserIdProvider>();
 
 builder.Services.AddScoped<MessageService>();
 builder.Services.AddScoped<PresenceService>();

@@ -17,7 +17,7 @@
             }
 
             var currentPath = environment.ContentRootPath;
-            var path = Path.Combine(currentPath, "Uploads");
+            var path = Path.Combine(currentPath, "wwwroot/Uploads");
 
             if (!Directory.Exists(path))
             {

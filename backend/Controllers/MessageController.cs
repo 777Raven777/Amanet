@@ -26,7 +26,7 @@ public class MessageController : ControllerBase
 
         if (success)
         {
-            return CreatedAtAction(responseText, message);
+            return StatusCode(201, message);
         }
         return BadRequest(responseText);
     }
@@ -40,7 +40,7 @@ public class MessageController : ControllerBase
 
         if (success)
         {
-            return CreatedAtAction(responseText, message);
+            return StatusCode(201, message);
         }
         return BadRequest(responseText);
     }

@@ -19,8 +19,6 @@ public class AuthenticationMiddleware
 
     public async Task InvokeAsync(HttpContext context, TokenService tokenService)
     {
-        // Here need to hit cache first but cache does not exist yet so directly to db
-
         string userToken = null;
         if (context.WebSockets.IsWebSocketRequest)
         {
@@ -42,6 +40,10 @@ public class AuthenticationMiddleware
             {
                 userToken = authHeader.Substring("Bearer ".Length).Trim();
             }
+        }
+        if (string.IsNullOrWhiteSpace(userToken) && context.Request.Query.TryGetValue("access_token", out var qToken))
+        {
+            userToken = qToken.ToString();
         }
         if (!string.IsNullOrWhiteSpace(userToken))
         {

@@ -189,7 +189,7 @@ public class ChatHub : Hub
 
         var isMember = await (
             from sp in _db.ServerParticipants
-            join ch in _db.ServerChannels on sp.ServerId equals ch.Server.Id
+            join ch in _db.ServerChannels on sp.ServerId equals ch.ServerId
             where ch.Id == channelId && sp.Participant.Id == userId
             select sp.Id
         ).AnyAsync();
