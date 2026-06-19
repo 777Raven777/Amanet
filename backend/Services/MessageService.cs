@@ -141,6 +141,7 @@ public class MessageService
                     },
                     Message = text,
                     Edited = false,
+                    SourceId = conversation.Id,
                 }
             );
         }
@@ -173,6 +174,7 @@ public class MessageService
                     ProfilePictureUrl = senderInfo.ProfilePictureUrl,
                 },
                 Message = text,
+                SourceId=conversation.Id,
             }
             );
         }
@@ -426,6 +428,7 @@ public class MessageService
             },
             Message = request.Message,
             Edited = false,
+            SourceId = channelId,
         }
         );
     }
