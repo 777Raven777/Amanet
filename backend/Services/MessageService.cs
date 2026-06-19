@@ -235,7 +235,12 @@ public class MessageService
                         Id = m.Id,
                         Message = m.Text,
                         SentAt = m.CreatedAt,
-                        Sender = new UserDTO { Id = m.Sender.Id, Username = m.Sender.Username },
+                        Sender = new UserDTO
+                        {
+                            Id = m.Sender.Id,
+                            Username = m.Sender.Username,
+                            ProfilePictureUrl = m.Sender.ProfilePictureUrl,
+                        },
                         Edited = m.Edited,
                     }
                     ).ToListAsync();
