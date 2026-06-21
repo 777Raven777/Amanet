@@ -4,7 +4,7 @@
 
 Amanet is a Discord-style real-time chat application. It supports private direct messaging, server/channel messaging, friend management and live message delivery. The whole thing is dressed in an apothecary-and-letters theme: conversations are "letters", servers are "pavilions", friends are "allies", and the UI is built out of parchment, brass and wooden shelves.
 
-![Amanet – Conversations view](docs/screenshot.png)
+![Amanet – Conversations view](backend/docs/screenshot.png)
 
 ## What it is
 
